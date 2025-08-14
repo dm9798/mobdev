@@ -77,23 +77,89 @@ export default function App() {
 
   const [groundedTiles, setGroundedTiles] = useState([]);
 
+  const allTargetNumbers = useRef(
+    [...Array(23 - 8 + 1).keys()]
+      .map((i) => i + 8)
+      .sort(() => Math.random() - 0.5)
+  );
+  const numberIndex = useRef(0);
+
+  const isAboveGroundedTile = (tilePos, groundedTiles) => {
+    const row = Math.round(tilePos.top / TILE_SIZE);
+    const col = Math.round(tilePos.left / TILE_SIZE);
+    const belowRow = row + 1;
+    const belowPos = { top: belowRow * TILE_SIZE, left: col * TILE_SIZE };
+    return groundedTiles.some(
+      (tile) =>
+        tile.tilePos.top === belowPos.top && tile.tilePos.left === belowPos.left
+    );
+  };
+
+  const canSpawnTile = (number) => {
+    const row = Math.floor(number / BOARD_WIDTH_IN_TILES);
+    const col = number % BOARD_WIDTH_IN_TILES;
+
+    // Check if there's a grounded tile below this number's position
+    const belowRow = row + 1;
+    if (belowRow < BOARD_HEIGHT_IN_TILES) {
+      const belowPos = { top: belowRow * TILE_SIZE, left: col * TILE_SIZE };
+      const hasGroundedBelow = groundedTiles.some(
+        (tile) =>
+          tile.tilePos.top === belowPos.top &&
+          tile.tilePos.left === belowPos.left
+      );
+      if (hasGroundedBelow) return true;
+    }
+
+    // Or if it's in the bottom row
+    return row === BOARD_HEIGHT_IN_TILES - 1;
+  };
+
   useEffect(() => {
-    // Function to initialize the 4x6 board cells
     const initializeBoard = () => {
       let initialArr = [];
       for (let i = 0; i < BOARD_WIDTH_IN_TILES * BOARD_HEIGHT_IN_TILES; i++) {
         initialArr.push({ loc: i });
       }
       setGameboard(initialArr);
+
+      // Pick a random number between 8 and 23
+      const randomNumber = Math.floor(Math.random() * (23 - 8 + 1)) + 8;
+
+      // Add a random grounded tile with the random number at the position corresponding to the number
+      const row = Math.floor(randomNumber / BOARD_WIDTH_IN_TILES);
+      const col = randomNumber % BOARD_WIDTH_IN_TILES;
+      const randomTilePos = {
+        top: row * TILE_SIZE,
+        left: col * TILE_SIZE,
+      };
+      setGroundedTiles((prev) => [
+        ...prev,
+        { tilePos: randomTilePos, number: randomNumber, color: "yellow" },
+      ]);
+
+      // Remove the random number from targetNumbers arrays if present
+      [allTargetNumbers.current].forEach((arr) => {
+        const index = arr.indexOf(randomNumber);
+        if (index !== -1) {
+          arr.splice(index, 1);
+        }
+      });
     };
 
-    // Function to set up the number for the movable tile
     const initializeMovableTileNumber = () => {
-      // Numbers for the bottom row cells (loc 20-23)
-      const numbers = [20, 21, 22, 23];
-      // Select a random number and set the state
-      const randomNum = numbers[Math.floor(Math.random() * numbers.length)];
-      setMovableTileNumber(randomNum);
+      let newNumber;
+      do {
+        newNumber = allTargetNumbers.current[numberIndex.current];
+        numberIndex.current += 1;
+        if (numberIndex.current >= allTargetNumbers.current.length) {
+          console.log("All numbers used up.");
+          break;
+        }
+      } while (!canSpawnTile(newNumber));
+      if (canSpawnTile(newNumber)) {
+        setMovableTileNumber(newNumber);
+      }
     };
 
     initializeBoard();
@@ -104,8 +170,10 @@ export default function App() {
   useEffect(() => {
     intervalRef.current = setInterval(() => {
       setTilePos((currentPos) => {
-        // Stop the automatic movement once the tile reaches the bottom row
-        if (currentPos.top >= MAX_TOP) {
+        if (
+          currentPos.top >= MAX_TOP ||
+          isAboveGroundedTile(currentPos, groundedTiles)
+        ) {
           clearInterval(intervalRef.current);
           return currentPos;
         }
@@ -116,70 +184,80 @@ export default function App() {
     return () => {
       clearInterval(intervalRef.current);
     };
-  }, []);
+  }, [movableTileNumber, groundedTiles]);
 
   // New useEffect hook to handle the final landing logic (color change and game end)
   useEffect(() => {
     let timer;
-    // Check if the tile has landed at the bottom
-    if (tilePos.top >= MAX_TOP) {
-      // Start a 3-second timer
+    if (tilePos.top >= MAX_TOP || isAboveGroundedTile(tilePos, groundedTiles)) {
       timer = setTimeout(() => {
-        // Calculate the 'loc' number for the tile's final position
         const row = Math.round(tilePos.top / TILE_SIZE);
         const col = Math.round(tilePos.left / TILE_SIZE);
         const loc = row * BOARD_WIDTH_IN_TILES + col;
 
-        // Check if the final location matches the target number
-        if (loc === movableTileNumber) {
-          setMovableTileColor("#9B51E0"); // Correct: Purple
-        } else {
-          setMovableTileColor("yellow"); // Incorrect: Yellow
+        const tileColor = loc === movableTileNumber ? "#9B51E0" : "yellow";
+        let finalTilePos = tilePos;
+        if (loc !== movableTileNumber) {
+          const targetRow = Math.floor(
+            movableTileNumber / BOARD_WIDTH_IN_TILES
+          );
+          const targetCol = movableTileNumber % BOARD_WIDTH_IN_TILES;
+          finalTilePos = {
+            top: targetRow * TILE_SIZE,
+            left: targetCol * TILE_SIZE,
+          };
         }
+
         console.log(`The tile has landed on cell number: ${loc}`);
-        // End the game after the 3-second window
         setIsGameEnded(true);
 
-        // Add tile to grounded tiles
         setGroundedTiles((prev) => [
           ...prev,
-          { tilePos, number: movableTileNumber, color: movableTileColor },
+          {
+            tilePos: finalTilePos,
+            number: movableTileNumber,
+            color: tileColor,
+          },
         ]);
 
-        // Spawn a new tile
-        spawnNewTile();
-      }, 3000); // 3-second delay
-    } else {
-      // Keep the tile purple while it is moving and not at the bottom
+        numberIndex.current += 1;
+        if (numberIndex.current >= allTargetNumbers.current.length) {
+          console.log("All numbers used up.");
+        } else {
+          spawnNewTile();
+        }
+      }, 3000);
+    }
+    return () => clearTimeout(timer);
+  }, [tilePos, movableTileNumber, groundedTiles]);
+
+  const spawnNewTile = () => {
+    let newNumber;
+    do {
+      newNumber = allTargetNumbers.current[numberIndex.current];
+      numberIndex.current += 1;
+      if (numberIndex.current >= allTargetNumbers.current.length) {
+        console.log("All numbers used up.");
+        break;
+      }
+    } while (!canSpawnTile(newNumber));
+
+    if (canSpawnTile(newNumber)) {
+      const newRandomIndex = Math.floor(
+        Math.random() * possibleLeftPositions.length
+      );
+
+      setTilePos({
+        top: 0,
+        left: possibleLeftPositions[newRandomIndex],
+      });
+      setMovableTileNumber(newNumber);
       setMovableTileColor("#9B51E0");
       setIsGameEnded(false);
     }
-
-    // Cleanup function to clear the timer if the component unmounts or tilePos changes
-    return () => clearTimeout(timer);
-  }, [tilePos, movableTileNumber]);
-
-  const spawnNewTile = () => {
-    const newRandomIndex = Math.floor(
-      Math.random() * possibleLeftPositions.length
-    );
-    const numbers = [20, 21, 22, 23];
-    let newNumber;
-    do {
-      newNumber = numbers[Math.floor(Math.random() * numbers.length)];
-    } while (newNumber === movableTileNumber);
-
-    setTilePos({
-      top: 0,
-      left: possibleLeftPositions[newRandomIndex],
-    });
-    setMovableTileNumber(newNumber);
-    setMovableTileColor("#9B51E0");
-    setIsGameEnded(false);
   };
 
   const moveLeft = () => {
-    // Only allow movement if the game is not over
     if (isGameEnded) return;
 
     setTilePos((currentPos) => {
@@ -192,7 +270,6 @@ export default function App() {
   };
 
   const moveRight = () => {
-    // Only allow movement if the game is not over
     if (isGameEnded) return;
 
     setTilePos((currentPos) => {
@@ -205,33 +282,49 @@ export default function App() {
   };
 
   const moveDown = () => {
-    // Only allow movement if the game is not over
     if (isGameEnded) return;
 
     setTilePos((currentPos) => {
       const newTop = currentPos.top + TILE_SIZE;
       if (newTop <= MAX_TOP) {
+        const row = Math.round(newTop / TILE_SIZE);
+        const col = Math.round(currentPos.left / TILE_SIZE);
+        const belowPos = { top: row * TILE_SIZE, left: col * TILE_SIZE };
+        const wouldMoveOntoGrounded = groundedTiles.some(
+          (tile) =>
+            tile.tilePos.top === belowPos.top &&
+            tile.tilePos.left === belowPos.left
+        );
+        if (wouldMoveOntoGrounded) {
+          return currentPos;
+        }
         return { ...currentPos, top: newTop };
       } else if (currentPos.top >= MAX_TOP) {
-        // Consider as grounded if already at bottom row
         setIsGameEnded(true);
         const row = Math.round(currentPos.top / TILE_SIZE);
         const col = Math.round(currentPos.left / TILE_SIZE);
         const loc = row * BOARD_WIDTH_IN_TILES + col;
-        if (loc === movableTileNumber) {
-          setMovableTileColor("#9B51E0"); // Correct: Purple
-        } else {
-          setMovableTileColor("yellow"); // Incorrect: Yellow
+        const tileColor = loc === movableTileNumber ? "#9B51E0" : "yellow";
+        let finalTilePos = currentPos;
+        if (loc !== movableTileNumber) {
+          const targetRow = Math.floor(
+            movableTileNumber / BOARD_WIDTH_IN_TILES
+          );
+          const targetCol = movableTileNumber % BOARD_WIDTH_IN_TILES;
+          finalTilePos = {
+            top: targetRow * TILE_SIZE,
+            left: targetCol * TILE_SIZE,
+          };
         }
+
         console.log(`The tile has landed on cell number: ${loc}`);
 
-        // Add tile to grounded tiles
         setGroundedTiles((prev) => [
           ...prev,
           {
-            tilePos: currentPos,
+            tilePos: finalTilePos,
             number: movableTileNumber,
-            color: movableTileColor,
+            color: tileColor,
           },
         ]);
 
@@ -251,7 +344,6 @@ export default function App() {
             </View>
           </View>
         ))}
-        {/* Render grounded tiles */}
         {groundedTiles.map((tile, index) => (
           <GroundedTile
             key={`grounded-${index}`}
@@ -260,8 +352,7 @@ export default function App() {
             color={tile.color}
           />
         ))}
-        {/* Pass the movableTileNumber and the current color to the MoveableTile component */}
-        {movableTileNumber !== null && (
+        {movableTileNumber !== null && !isGameEnded && (
           <MoveableTile
             tilePos={tilePos}
             number={movableTileNumber}
@@ -346,19 +437,16 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "bold",
   },
-  // New style for the movable tile
   movableTile: {
     width: TILE_SIZE,
     height: TILE_SIZE,
     position: "absolute",
-    // We removed the fixed background color here so it can be set dynamically
     justifyContent: "center",
     alignItems: "center",
   },
-  // New style for the text inside the movable tile
   movableTileText: {
     color: "white",
-    fontSize: TILE_SIZE / 3, // Make the text size relative to the tile size
+    fontSize: TILE_SIZE / 3,
     fontWeight: "bold",
   },
 });
