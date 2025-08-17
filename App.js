@@ -78,7 +78,10 @@ export default function App() {
   const [groundedTiles, setGroundedTiles] = useState([]);
 
   const allTargetNumbers = useRef(
-    [...Array(23 - 8 + 1).keys()].map((i) => i + 8)
+    Array.from(
+      { length: BOARD_HEIGHT_IN_TILES * BOARD_WIDTH_IN_TILES },
+      (_, i) => i
+    ).filter((i) => i >= 8 && i <= 23)
   );
   const numberIndex = useRef(0);
 
@@ -91,6 +94,49 @@ export default function App() {
       (tile) =>
         tile.tilePos.top === belowPos.top && tile.tilePos.left === belowPos.left
     );
+  };
+
+  const isPathClear = (targetNumber, groundedTiles, tilePos) => {
+    const targetRow = Math.floor(targetNumber / BOARD_WIDTH_IN_TILES);
+    const targetCol = targetNumber % BOARD_WIDTH_IN_TILES;
+    const currentRow = Math.round(tilePos.top / TILE_SIZE);
+    const currentCol = Math.round(tilePos.left / TILE_SIZE);
+
+    // Check if the path is clear horizontally
+    if (targetRow === currentRow) {
+      const startCol = Math.min(targetCol, currentCol);
+      const endCol = Math.max(targetCol, currentCol);
+      for (let col = startCol + 1; col < endCol; col++) {
+        const pos = { top: targetRow * TILE_SIZE, left: col * TILE_SIZE };
+        if (
+          groundedTiles.some(
+            (tile) =>
+              tile.tilePos.top === pos.top && tile.tilePos.left === pos.left
+          )
+        ) {
+          return false;
+        }
+      }
+    }
+
+    // Check if the path is clear vertically
+    if (targetCol === currentCol) {
+      const startRow = Math.min(targetRow, currentRow);
+      const endRow = Math.max(targetRow, currentRow);
+      for (let row = startRow + 1; row < endRow; row++) {
+        const pos = { top: row * TILE_SIZE, left: targetCol * TILE_SIZE };
+        if (
+          groundedTiles.some(
+            (tile) =>
+              tile.tilePos.top === pos.top && tile.tilePos.left === pos.left
+          )
+        ) {
+          return false;
+        }
+      }
+    }
+
+    return true;
   };
 
   const canSpawnTile = (number) => {
@@ -114,17 +160,35 @@ export default function App() {
 
   const spawnNewTile = () => {
     if (allTargetNumbers.current.length > 0) {
-      const spawnableNumbers = allTargetNumbers.current.filter((number) =>
+      const groundedTileNumbers = groundedTiles.map((tile) => tile.number);
+      const availableNumbers = allTargetNumbers.current.filter(
+        (number) => !groundedTileNumbers.includes(number)
+      );
+
+      const spawnableNumbers = availableNumbers.filter((number) =>
         canSpawnTile(number)
       );
 
-      if (spawnableNumbers.length === 0) {
-        console.log("No spawnable numbers.");
+      const validSpawnableNumbers = spawnableNumbers.filter((number) =>
+        isPathClear(number, groundedTiles, { top: 0, left: 0 })
+      );
+
+      if (validSpawnableNumbers.length === 0) {
+        // If no valid spawnable numbers, try to add a new grounded tile that doesn't block any movable tiles
+        const newGroundedTile = getNewGroundedTile();
+        if (newGroundedTile) {
+          setGroundedTiles([...groundedTiles, newGroundedTile]);
+          spawnNewTile();
+        } else {
+          console.log("No valid grounded tile can be added.");
+        }
         return;
       }
 
       const newNumber =
-        spawnableNumbers[Math.floor(Math.random() * spawnableNumbers.length)];
+        validSpawnableNumbers[
+          Math.floor(Math.random() * validSpawnableNumbers.length)
+        ];
       setMovableTileNumber(newNumber);
       setMovableTileColor("#9B51E0");
       setIsGameEnded(false);
@@ -137,6 +201,47 @@ export default function App() {
     }
   };
 
+  const getNewGroundedTile = () => {
+    const availableCells = [];
+    for (let i = 8; i < BOARD_HEIGHT_IN_TILES * BOARD_WIDTH_IN_TILES; i++) {
+      if (!groundedTiles.some((tile) => tile.number === i)) {
+        availableCells.push(i);
+      }
+    }
+
+    for (const cell of availableCells) {
+      const row = Math.floor(cell / BOARD_WIDTH_IN_TILES);
+      const col = cell % BOARD_WIDTH_IN_TILES;
+      const tilePos = {
+        top: row * TILE_SIZE,
+        left: col * TILE_SIZE,
+      };
+      const newGroundedTile = { tilePos, number: cell, color: "yellow" };
+      const spawnableNumbers = allTargetNumbers.current.filter((number) =>
+        canSpawnTile(number)
+      );
+
+      let isValid = true;
+      for (const targetNumber of spawnableNumbers) {
+        if (
+          !isPathClear(targetNumber, [...groundedTiles, newGroundedTile], {
+            top: 0,
+            left: 0,
+          })
+        ) {
+          isValid = false;
+          break;
+        }
+      }
+
+      if (isValid) {
+        return newGroundedTile;
+      }
+    }
+
+    return null;
+  };
+
   useEffect(() => {
     const initializeBoard = () => {
       let initialArr = [];
@@ -147,28 +252,90 @@ export default function App() {
     };
 
     const initializeMovableTileNumber = () => {
-      const randomNumber =
-        allTargetNumbers.current[
-          Math.floor(Math.random() * allTargetNumbers.current.length)
-        ];
-      const row = Math.floor(randomNumber / BOARD_WIDTH_IN_TILES);
-      const col = randomNumber % BOARD_WIDTH_IN_TILES;
-      const randomTilePos = {
-        top: row * TILE_SIZE,
-        left: col * TILE_SIZE,
+      const generateGroundedTiles = (numTiles) => {
+        const groundedTiles = [];
+        const generateTiles = () => {
+          if (groundedTiles.length === numTiles) {
+            return groundedTiles;
+          }
+
+          const availableCells = [];
+          for (
+            let i = 8;
+            i < BOARD_HEIGHT_IN_TILES * BOARD_WIDTH_IN_TILES;
+            i++
+          ) {
+            if (!groundedTiles.some((tile) => tile.number === i)) {
+              availableCells.push(i);
+            }
+          }
+
+          let validTiles = false;
+          let randomCell;
+          while (!validTiles && availableCells.length > 0) {
+            const randomIndex = Math.floor(
+              Math.random() * availableCells.length
+            );
+            randomCell = availableCells.splice(randomIndex, 1)[0];
+            const row = Math.floor(randomCell / BOARD_WIDTH_IN_TILES);
+            const col = randomCell % BOARD_WIDTH_IN_TILES;
+            const tilePos = {
+              top: row * TILE_SIZE,
+              left: col * TILE_SIZE,
+            };
+            const newTiles = [
+              ...groundedTiles,
+              { tilePos, number: randomCell, color: "yellow" },
+            ];
+            const spawnableNumbers = allTargetNumbers.current.filter((number) =>
+              canSpawnTile(number)
+            );
+
+            let isValid = true;
+            for (const targetNumber of spawnableNumbers) {
+              if (!isPathClear(targetNumber, newTiles, { top: 0, left: 0 })) {
+                isValid = false;
+                break;
+              }
+            }
+
+            if (isValid) {
+              validTiles = true;
+              groundedTiles.push({
+                tilePos,
+                number: randomCell,
+                color: "yellow",
+              });
+            }
+          }
+
+          if (validTiles) {
+            return generateTiles();
+          } else {
+            return null;
+          }
+        };
+
+        return generateTiles();
       };
-      setGroundedTiles((prev) => [
-        ...prev,
-        { tilePos: randomTilePos, number: randomNumber, color: "yellow" },
-      ]);
 
-      const index = allTargetNumbers.current.indexOf(randomNumber);
-      if (index !== -1) {
-        allTargetNumbers.current.splice(index, 1);
+      const groundedTilesInit = generateGroundedTiles(3);
+      if (groundedTilesInit) {
+        const groundedTilesWithPositions = groundedTilesInit.map((tile) => {
+          const row = Math.floor(tile.number / BOARD_WIDTH_IN_TILES);
+          const col = tile.number % BOARD_WIDTH_IN_TILES;
+          const tilePos = {
+            top: row * TILE_SIZE,
+            left: col * TILE_SIZE,
+          };
+          return { tilePos, number: tile.number, color: "yellow" };
+        });
+        setGroundedTiles(groundedTilesWithPositions);
+        numberIndex.current = 0;
+        spawnNewTile();
+      } else {
+        console.log("Failed to generate grounded tiles.");
       }
-
-      numberIndex.current = 0;
-      spawnNewTile();
     };
 
     initializeBoard();
