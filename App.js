@@ -107,13 +107,8 @@ export default function App() {
       const startCol = Math.min(targetCol, currentCol);
       const endCol = Math.max(targetCol, currentCol);
       for (let col = startCol + 1; col < endCol; col++) {
-        const pos = { top: targetRow * TILE_SIZE, left: col * TILE_SIZE };
-        if (
-          groundedTiles.some(
-            (tile) =>
-              tile.tilePos.top === pos.top && tile.tilePos.left === pos.left
-          )
-        ) {
+        const pos = targetRow * BOARD_WIDTH_IN_TILES + col;
+        if (groundedTiles.some((tile) => tile.number === pos)) {
           return false;
         }
       }
@@ -124,13 +119,8 @@ export default function App() {
       const startRow = Math.min(targetRow, currentRow);
       const endRow = Math.max(targetRow, currentRow);
       for (let row = startRow + 1; row < endRow; row++) {
-        const pos = { top: row * TILE_SIZE, left: targetCol * TILE_SIZE };
-        if (
-          groundedTiles.some(
-            (tile) =>
-              tile.tilePos.top === pos.top && tile.tilePos.left === pos.left
-          )
-        ) {
+        const pos = row * BOARD_WIDTH_IN_TILES + targetCol;
+        if (groundedTiles.some((tile) => tile.number === pos)) {
           return false;
         }
       }
@@ -158,6 +148,157 @@ export default function App() {
     return row === BOARD_HEIGHT_IN_TILES - 1;
   };
 
+  const unwantedCombinationsDuringGame = [
+    {
+      combination: [16, 21],
+      requiredPositions: [20],
+    },
+    {
+      combination: [19, 22],
+      requiredPositions: [23],
+    },
+    {
+      combination: [12, 17, 22],
+      requiredPositions: [16, 20, 21],
+    },
+    {
+      combination: [15, 18, 21],
+      requiredPositions: [19, 22, 23],
+    },
+    {
+      combination: [8, 13],
+      requiredPositions: [12],
+    },
+    {
+      combination: [11, 14],
+      requiredPositions: [15],
+    },
+    {
+      combination: [15, 18],
+      requiredPositions: [19],
+    },
+    {
+      combination: [12, 17],
+      requiredPositions: [16],
+    },
+    {
+      combination: [18, 19, 21],
+      requiredPositions: [22, 23],
+    },
+    {
+      combination: [12, 17, 21],
+      requiredPositions: [16, 20],
+    },
+    {
+      combination: [16, 17, 22],
+      requiredPositions: [20, 21],
+    },
+    {
+      combination: [14, 17, 19],
+      requiredPositions: [18],
+    },
+    {
+      combination: [10, 13, 15],
+      requiredPositions: [14],
+    },
+    {
+      combination: [9, 12, 14],
+      requiredPositions: [13],
+    },
+    {
+      combination: [15, 18, 22],
+      requiredPositions: [19, 23],
+    },
+    {
+      combination: [13, 16, 18],
+      requiredPositions: [17],
+    },
+    {
+      combination: [18, 21, 23],
+      requiredPositions: [22],
+    },
+    {
+      combination: [17, 20, 22],
+      requiredPositions: [21],
+    },
+    {
+      combination: [8, 13, 18],
+      requiredPositions: [12, 16, 17],
+    },
+    {
+      combination: [11, 14, 17],
+      requiredPositions: [15, 18, 19],
+    },
+    {
+      combination: [9, 12, 14],
+      requiredPositions: [13],
+    },
+    {
+      combination: [11, 14, 18],
+      requiredPositions: [15, 19],
+    },
+    {
+      combination: [8, 13, 17],
+      requiredPositions: [12, 16],
+    },
+    {
+      combination: [11, 14, 17],
+      requiredPositions: [15, 18, 19],
+    },
+    {
+      combination: [8, 13, 17, 20],
+      requiredPositions: [12, 16],
+    },
+    {
+      combination: [8, 13, 17, 21],
+      requiredPositions: [12, 16, 20],
+    },
+    {
+      combination: [8, 13, 17, 22],
+      requiredPositions: [12, 16, 20, 21],
+    },
+    {
+      combination: [8, 13, 18, 21],
+      requiredPositions: [12, 16, 17, 20],
+    },
+    {
+      combination: [8, 13, 18, 22],
+      requiredPositions: [12, 16, 17, 20, 21],
+    },
+    {
+      combination: [8, 13, 18, 23],
+      requiredPositions: [12, 16, 17, 20, 21, 22],
+    },
+    {
+      combination: [14, 15, 17, 21],
+      requiredPositions: [18, 19, 22, 23],
+    },
+    {
+      combination: [12, 13, 18, 22],
+      requiredPositions: [16, 17, 20, 21],
+    },
+  ];
+
+  const isValidPosition = (groundedTiles, targetNumber) => {
+    const newGroundedTiles = [...groundedTiles, { number: targetNumber }];
+    for (const uc of unwantedCombinationsDuringGame) {
+      if (
+        uc.combination.every((num) =>
+          newGroundedTiles.some((tile) => tile.number === num)
+        )
+      ) {
+        if (
+          !uc.requiredPositions.every((pos) =>
+            newGroundedTiles.some((tile) => tile.number === pos)
+          )
+        ) {
+          return false;
+        }
+      }
+    }
+    return true;
+  };
+
   const spawnNewTile = () => {
     if (allTargetNumbers.current.length > 0) {
       const groundedTileNumbers = groundedTiles.map((tile) => tile.number);
@@ -169,15 +310,24 @@ export default function App() {
         canSpawnTile(number)
       );
 
-      const validSpawnableNumbers = spawnableNumbers.filter((number) =>
-        isPathClear(number, groundedTiles, { top: 0, left: 0 })
-      );
+      const validSpawnableNumbers = spawnableNumbers.filter((number) => {
+        return (
+          isPathClear(number, groundedTiles, { top: 0, left: 0 }) &&
+          isValidPosition(groundedTiles, number)
+        );
+      });
 
       if (validSpawnableNumbers.length === 0) {
         // If no valid spawnable numbers, try to add a new grounded tile that doesn't block any movable tiles
         const newGroundedTile = getNewGroundedTile();
         if (newGroundedTile) {
           setGroundedTiles([...groundedTiles, newGroundedTile]);
+          const index = allTargetNumbers.current.indexOf(
+            newGroundedTile.number
+          );
+          if (index !== -1) {
+            allTargetNumbers.current.splice(index, 1);
+          }
           spawnNewTile();
         } else {
           console.log("No valid grounded tile can be added.");
@@ -217,6 +367,7 @@ export default function App() {
         left: col * TILE_SIZE,
       };
       const newGroundedTile = { tilePos, number: cell, color: "yellow" };
+      const allGroundedTiles = [...groundedTiles, newGroundedTile];
       const spawnableNumbers = allTargetNumbers.current.filter((number) =>
         canSpawnTile(number)
       );
@@ -224,9 +375,9 @@ export default function App() {
       let isValid = true;
       for (const targetNumber of spawnableNumbers) {
         if (
-          !isPathClear(targetNumber, [...groundedTiles, newGroundedTile], {
+          !isPathClear(targetNumber, allGroundedTiles, {
             top: 0,
-            left: 0,
+            left: possibleLeftPositions[0],
           })
         ) {
           isValid = false;
@@ -252,71 +403,66 @@ export default function App() {
     };
 
     const initializeMovableTileNumber = () => {
+      //normal
+      const unwantedCombinations = [
+        [16, 21],
+        [19, 22],
+        [12, 17, 22],
+        [15, 18, 21],
+        [8, 13],
+        [11, 14],
+        [15, 18],
+        [12, 17],
+        [18, 19, 21],
+        [12, 17, 21],
+        [16, 17, 22],
+        [14, 17, 19],
+        [10, 13, 15],
+        [9, 12, 14],
+        [15, 18, 22],
+        [13, 16, 18],
+        [18, 21, 23],
+        [17, 20, 22],
+      ];
+
+      const isUnwantedCombination = (groundedTiles) => {
+        const tileNumbers = groundedTiles
+          .map((tile) => tile.number)
+          .sort((a, b) => a - b);
+        return unwantedCombinations.some((combination) => {
+          return combination.every((number) => tileNumbers.includes(number));
+        });
+      };
+
       const generateGroundedTiles = (numTiles) => {
-        const groundedTiles = [];
-        const generateTiles = () => {
-          if (groundedTiles.length === numTiles) {
-            return groundedTiles;
-          }
-
-          const availableCells = [];
-          for (
-            let i = 8;
-            i < BOARD_HEIGHT_IN_TILES * BOARD_WIDTH_IN_TILES;
-            i++
-          ) {
-            if (!groundedTiles.some((tile) => tile.number === i)) {
-              availableCells.push(i);
-            }
-          }
-
-          let validTiles = false;
-          let randomCell;
-          while (!validTiles && availableCells.length > 0) {
-            const randomIndex = Math.floor(
-              Math.random() * availableCells.length
-            );
-            randomCell = availableCells.splice(randomIndex, 1)[0];
+        let groundedTiles;
+        do {
+          groundedTiles = [];
+          const numbers = [];
+          for (let i = 0; i < numTiles; i++) {
+            let randomCell;
+            do {
+              randomCell =
+                Math.floor(
+                  Math.random() *
+                    (BOARD_HEIGHT_IN_TILES * BOARD_WIDTH_IN_TILES - 8)
+                ) + 8;
+            } while (numbers.includes(randomCell));
+            numbers.push(randomCell);
             const row = Math.floor(randomCell / BOARD_WIDTH_IN_TILES);
             const col = randomCell % BOARD_WIDTH_IN_TILES;
             const tilePos = {
               top: row * TILE_SIZE,
               left: col * TILE_SIZE,
             };
-            const newTiles = [
-              ...groundedTiles,
-              { tilePos, number: randomCell, color: "yellow" },
-            ];
-            const spawnableNumbers = allTargetNumbers.current.filter((number) =>
-              canSpawnTile(number)
-            );
-
-            let isValid = true;
-            for (const targetNumber of spawnableNumbers) {
-              if (!isPathClear(targetNumber, newTiles, { top: 0, left: 0 })) {
-                isValid = false;
-                break;
-              }
-            }
-
-            if (isValid) {
-              validTiles = true;
-              groundedTiles.push({
-                tilePos,
-                number: randomCell,
-                color: "yellow",
-              });
-            }
+            groundedTiles.push({
+              tilePos,
+              number: randomCell,
+              color: "yellow",
+            });
           }
-
-          if (validTiles) {
-            return generateTiles();
-          } else {
-            return null;
-          }
-        };
-
-        return generateTiles();
+        } while (isUnwantedCombination(groundedTiles));
+        return groundedTiles;
       };
 
       const groundedTilesInit = generateGroundedTiles(3);
