@@ -227,7 +227,7 @@ const filterByLookahead = (tiles, candidates) => {
   return good;
 };
 
-// ---------- UI components ----------
+// ---------- UI component ----------
 const Tile = ({ tilePos, number, color }) => (
   <View
     style={[
@@ -242,6 +242,8 @@ const Tile = ({ tilePos, number, color }) => (
 export default function App() {
   const [groundedTiles, setGroundedTiles] = useState([]);
   const [activeTile, setActiveTile] = useState(null);
+  const [isGameOver, setIsGameOver] = useState(false);
+
   const intervalRef = useRef(null);
   const lockTimeoutRef = useRef(null);
   const lastLockedRef = useRef(null);
@@ -255,7 +257,7 @@ export default function App() {
   const canMoveDown = (row, col) =>
     row + 1 < BOARD_HEIGHT && !isCellOccupied(row + 1, col);
 
-  // ---------- Spawning with look-ahead and random top-row column ----------
+  // ---------- Spawning (two-tier + look-ahead) ----------
   const chooseSpawn = (tiles) => {
     let spawnable = getSpawnableTargetsTwoTier(tiles);
     spawnable = spawnable.filter((num) => !tiles.some((t) => t.number === num));
@@ -265,25 +267,27 @@ export default function App() {
     let finalPool = pool;
     if (finalPool.length > 1) {
       finalPool = finalPool.filter((num) => num !== lastLockedRef.current);
-      if (finalPool.length === 0) finalPool = pool; // if all filtered, revert
+      if (finalPool.length === 0) finalPool = pool; // revert if we filtered all
     }
     return finalPool;
   };
 
   const spawnTile = () => {
+    if (isGameOver) return;
     const pool = chooseSpawn(groundedTiles);
     if (pool.length === 0) {
       console.log("No valid spawn targets remain. Game over.");
       setActiveTile(null);
+      setIsGameOver(true);
       return;
     }
     const targetNumber = pool[Math.floor(Math.random() * pool.length)];
-    const startingCol = randomTopCol(); // <-- random top-row column
+    const startingCol = randomTopCol(); // random top-row column
     setActiveTile({ row: 0, col: startingCol, targetNumber });
   };
 
   const lockAndTeleport = () => {
-    if (!activeTile) return;
+    if (!activeTile || isGameOver) return;
     const targetRow = rowOf(activeTile.targetNumber);
     const targetCol = colOf(activeTile.targetNumber);
 
@@ -303,9 +307,10 @@ export default function App() {
       if (pool.length === 0) {
         console.log("No valid spawn targets remain. Game over.");
         setActiveTile(null);
+        setIsGameOver(true);
       } else {
         const targetNumber = pool[Math.floor(Math.random() * pool.length)];
-        const startingCol = randomTopCol(); // <-- random top-row column
+        const startingCol = randomTopCol();
         setActiveTile({ row: 0, col: startingCol, targetNumber });
       }
       return newTiles;
@@ -314,7 +319,7 @@ export default function App() {
 
   // ---------- Gravity ----------
   useEffect(() => {
-    if (!activeTile) return;
+    if (!activeTile || isGameOver) return;
     intervalRef.current = setInterval(() => {
       setActiveTile((prev) => {
         if (!prev) return null;
@@ -325,13 +330,13 @@ export default function App() {
         }
         return { ...prev, row: prev.row + 1 };
       });
-    }, 800);
+    }, 1200);
     return () => clearInterval(intervalRef.current);
-  }, [activeTile, groundedTiles]);
+  }, [activeTile, groundedTiles, isGameOver]);
 
   // ---------- Controls ----------
   const moveLeft = () => {
-    if (!activeTile) return;
+    if (!activeTile || isGameOver) return;
     setActiveTile((prev) => {
       const newCol = prev.col - 1;
       if (newCol >= 0 && !isCellOccupied(prev.row, newCol))
@@ -341,7 +346,7 @@ export default function App() {
   };
 
   const moveRight = () => {
-    if (!activeTile) return;
+    if (!activeTile || isGameOver) return;
     setActiveTile((prev) => {
       const newCol = prev.col + 1;
       if (newCol < BOARD_WIDTH && !isCellOccupied(prev.row, newCol))
@@ -351,7 +356,7 @@ export default function App() {
   };
 
   const moveDown = () => {
-    if (!activeTile) return;
+    if (!activeTile || isGameOver) return;
     setActiveTile((prev) => {
       if (prev.row === BOARD_HEIGHT - 1 || !canMoveDown(prev.row, prev.col)) {
         clearInterval(intervalRef.current);
@@ -362,8 +367,13 @@ export default function App() {
     });
   };
 
-  // ---------- Initial seed ----------
-  useEffect(() => {
+  // ---------- Initial seeding & reset helpers ----------
+  const seedInitial = () => {
+    memo.clear();
+    lastLockedRef.current = null;
+    setActiveTile(null);
+    setIsGameOver(false);
+
     let initialNumbers = [];
     let safety = 0;
 
@@ -391,7 +401,10 @@ export default function App() {
       }
       safety++;
     }
+  };
 
+  useEffect(() => {
+    seedInitial();
     return () => {
       clearInterval(intervalRef.current);
       clearTimeout(lockTimeoutRef.current);
@@ -400,10 +413,16 @@ export default function App() {
 
   // spawn only after initial groundedTiles are set / after a clear
   useEffect(() => {
-    if (groundedTiles.length > 0 && !activeTile) {
+    if (groundedTiles.length > 0 && !activeTile && !isGameOver) {
       spawnTile();
     }
-  }, [groundedTiles]);
+  }, [groundedTiles, isGameOver]);
+
+  const onNewGame = () => {
+    clearInterval(intervalRef.current);
+    clearTimeout(lockTimeoutRef.current);
+    seedInitial();
+  };
 
   return (
     <View style={styles.container}>
@@ -428,6 +447,9 @@ export default function App() {
             color="#9B51E0"
           />
         )}
+
+        {/* Absolute "GAME OVER" overlay at row 4 (index 3) */}
+        {isGameOver && <Text style={styles.gameOverText}>GAME OVER</Text>}
       </View>
 
       <View style={styles.controls}>
@@ -440,7 +462,14 @@ export default function App() {
         <TouchableOpacity onPress={moveRight} style={styles.button}>
           <Text style={styles.buttonText}>Right</Text>
         </TouchableOpacity>
+        <TouchableOpacity
+          onPress={onNewGame}
+          style={[styles.button, { backgroundColor: "#4CAF50" }]}
+        >
+          <Text style={styles.buttonText}>New Game</Text>
+        </TouchableOpacity>
       </View>
+
       <StatusBar style="auto" />
     </View>
   );
@@ -482,10 +511,13 @@ const styles = StyleSheet.create({
   controls: {
     flexDirection: "row",
     marginTop: 20,
+    flexWrap: "wrap",
+    justifyContent: "center",
   },
   button: {
     backgroundColor: "#2196F3",
     marginHorizontal: 5,
+    marginVertical: 4,
     paddingVertical: 10,
     paddingHorizontal: 15,
     borderRadius: 5,
@@ -493,5 +525,18 @@ const styles = StyleSheet.create({
   buttonText: {
     color: "white",
     fontWeight: "bold",
+  },
+  gameOverText: {
+    position: "absolute",
+    top: 3 * TILE_SIZE, // 4th row (row index 3)
+    left: 0,
+    width: BOARD_WIDTH * TILE_SIZE,
+    textAlign: "center",
+    fontSize: TILE_SIZE / 2,
+    fontWeight: "bold",
+    color: "red",
+    backgroundColor: "rgba(0,0,0,0.6)", // optional: translucent backdrop
+    paddingVertical: TILE_SIZE * 0.1,
+    zIndex: 10,
   },
 });
