@@ -66,25 +66,14 @@ const unwantedCombinationsDuringGame = [
     combination: [9, 10, 11, 12],
     requiredPositions: [8, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23],
   },
-  {
-    combination: [8, 13],
-    requiredPositions: [9, 10, 11, 12, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23],
-  },
+
   {
     combination: [10, 11, 13],
-    requiredPositions: [8, 9, 12, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23],
+    requiredPositions: [14, 15],
   },
   {
     combination: [8, 9, 14],
-    requiredPositions: [10, 11, 12, 13, 15, 16, 17, 18, 19, 20, 21, 22, 23],
-  },
-  {
-    combination: [11, 14],
-    requiredPositions: [8, 9, 10, 12, 13, 15, 16, 17, 18, 19, 20, 21, 22, 23],
-  },
-  {
-    combination: [9, 12, 14],
-    requiredPositions: [8, 10, 11, 13, 15, 16, 17, 18, 19, 20, 21, 22, 23],
+    requiredPositions: [12, 13],
   },
   {
     combination: [8, 9, 10, 15],
@@ -95,84 +84,70 @@ const unwantedCombinationsDuringGame = [
     requiredPositions: [8, 11, 13, 14, 16, 17, 18, 19, 20, 21, 22, 23],
   },
   {
-    combination: [10, 13, 15],
-    requiredPositions: [8, 9, 11, 12, 14, 16, 17, 18, 19, 20, 21, 22, 23],
-  },
-  {
     combination: [12, 13, 14, 15],
-    requiredPositions: [8, 9, 10, 11, 16, 17, 18, 19, 20, 21, 22, 23],
+    requiredPositions: [16, 17, 18, 19, 20, 21, 22, 23],
   },
   {
     combination: [13, 14, 15, 16],
-    requiredPositions: [8, 9, 10, 11, 12, 17, 18, 19, 20, 21, 22, 23],
+    requiredPositions: [17, 18, 19, 20, 21, 22, 23],
   },
-  {
-    combination: [12, 17],
-    requiredPositions: [8, 9, 10, 11, 13, 14, 15, 16, 18, 19, 20, 21, 22, 23],
-  },
+
   {
     combination: [14, 15, 17],
-    requiredPositions: [8, 9, 10, 11, 12, 13, 16, 18, 19, 20, 21, 22, 23],
+    requiredPositions: [18, 19],
   },
   {
     combination: [12, 13, 18],
-    requiredPositions: [8, 9, 10, 11, 14, 15, 16, 17, 19, 20, 21, 22, 23],
+    requiredPositions: [16, 17],
   },
-  {
-    combination: [15, 18],
-    requiredPositions: [8, 9, 10, 11, 12, 13, 14, 16, 17, 19, 20, 21, 22, 23],
-  },
-  {
-    combination: [13, 16, 18],
-    requiredPositions: [8, 9, 10, 11, 12, 14, 15, 17, 19, 20, 21, 22, 23],
-  },
+
   {
     combination: [12, 13, 14, 19],
-    requiredPositions: [8, 9, 10, 11, 15, 16, 17, 18, 20, 21, 22, 23],
+    requiredPositions: [16, 17, 18, 20, 21, 22, 23],
   },
   {
     combination: [13, 14, 16, 19],
-    requiredPositions: [8, 9, 10, 11, 12, 15, 17, 18, 20, 21, 22, 23],
+    requiredPositions: [17, 18, 20, 21, 22, 23],
   },
   {
     combination: [14, 17, 19],
-    requiredPositions: [8, 9, 10, 11, 12, 13, 15, 16, 18, 20, 21, 22, 23],
+    requiredPositions: [18],
   },
   {
     combination: [16, 17, 18, 19],
-    requiredPositions: [8, 9, 10, 11, 12, 13, 14, 15, 20, 21, 22, 23],
+    requiredPositions: [20, 21, 22, 23],
   },
   {
     combination: [17, 18, 19, 20],
-    requiredPositions: [8, 9, 10, 11, 12, 13, 14, 15, 16, 21, 22, 23],
+    requiredPositions: [21, 22, 23],
   },
   {
     combination: [18, 19, 21],
-    requiredPositions: [8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 20, 22, 23],
+    requiredPositions: [22, 23],
   },
   {
     combination: [16, 17, 22],
-    requiredPositions: [8, 9, 10, 11, 12, 13, 14, 15, 18, 19, 20, 21, 23],
+    requiredPositions: [20, 21],
   },
   {
     combination: [17, 19, 20, 22],
-    requiredPositions: [8, 9, 10, 11, 12, 13, 14, 15, 16, 18, 21, 23],
+    requiredPositions: [21, 23],
   },
   {
     combination: [16, 19, 21, 22],
-    requiredPositions: [8, 9, 10, 11, 12, 13, 14, 15, 17, 18, 20, 23],
+    requiredPositions: [20, 23],
   },
   {
     combination: [16, 17, 18, 23],
-    requiredPositions: [8, 9, 10, 11, 12, 13, 14, 15, 19, 20, 21, 22],
+    requiredPositions: [20, 21, 22],
   },
   {
     combination: [17, 18, 20, 23],
-    requiredPositions: [8, 9, 10, 11, 12, 13, 14, 15, 16, 19, 21, 22],
+    requiredPositions: [21, 22],
   },
   {
     combination: [16, 18, 21, 23],
-    requiredPositions: [8, 9, 10, 11, 12, 13, 14, 15, 17, 19, 20, 22],
+    requiredPositions: [20, 22],
   },
 ];
 
