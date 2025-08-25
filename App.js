@@ -300,15 +300,23 @@ export default function App() {
   };
 
   const spawnNewTile = () => {
+    if (allTargetNumbers.current.length === 0) {
+      console.log("Board is completed!");
+      return;
+    }
     if (allTargetNumbers.current.length > 0) {
       const groundedTileNumbers = groundedTiles.map((tile) => tile.number);
       const availableNumbers = allTargetNumbers.current.filter(
-        (number) => !groundedTileNumbers.includes(number)
+        (number) => !groundedTiles.some((tile) => tile.number === number)
       );
+
+      console.log("Available numbers:", availableNumbers);
 
       const spawnableNumbers = availableNumbers.filter((number) =>
         canSpawnTile(number)
       );
+
+      console.log("Spawnable numbers:", spawnableNumbers);
 
       const validSpawnableNumbers = spawnableNumbers.filter((number) => {
         return (
@@ -316,6 +324,8 @@ export default function App() {
           isValidPosition(groundedTiles, number)
         );
       });
+
+      console.log("Valid spawnable numbers:", validSpawnableNumbers);
 
       if (validSpawnableNumbers.length === 0) {
         // If no valid spawnable numbers, try to add a new grounded tile that doesn't block any movable tiles
@@ -478,7 +488,11 @@ export default function App() {
         });
         setGroundedTiles(groundedTilesWithPositions);
         numberIndex.current = 0;
-        spawnNewTile();
+        if (allTargetNumbers.current.length > 0) {
+          spawnNewTile();
+        } else {
+          console.log("Board is completed!");
+        }
       } else {
         console.log("Failed to generate grounded tiles.");
       }
@@ -503,7 +517,9 @@ export default function App() {
           top: 0,
           left: possibleLeftPositions[newRandomIndex],
         });
-        spawnNewTile();
+        if (allTargetNumbers.current.length > 0) {
+          spawnNewTile();
+        }
       }
     }
   }, [groundedTiles, movableTileNumber]);
