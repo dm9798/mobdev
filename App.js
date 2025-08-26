@@ -21,12 +21,12 @@ const VALID_POSITIONS = Array.from(
   (_, i) => i
 ).filter((i) => i >= 8 && i <= 23); // rows 2..5 (4x4)
 
-// --- Image puzzle mode ---
+// --- Image puzzle URIs ---
 const PUZZLE_IMAGE_URI =
   "https://bellahomeco.com.au/cdn/shop/products/9_6d329c09-13b8-4e04-a1ed-b40b01f0d054.jpg";
 
-// If you have a pre-grayscale URL, put it here; otherwise we dim the color image.
-const PUZZLE_IMAGE_URI_GRAYSCALE = ""; // e.g. "https://your-cdn/image-gray.jpg"
+// Grayscale board background provided by you:
+const PUZZLE_IMAGE_URI_GRAYSCALE = "https://i.imghippo.com/files/k1057el.jpg";
 const USE_GRAYSCALE_BG = true; // quick toggle
 
 const IMAGE_SIZE = TILE_SIZE * 4; // 4x4 area
@@ -41,7 +41,7 @@ const px = (n) => Math.round(n);
 // --- Random top-row spawn helper ---
 const randomTopCol = () => Math.floor(Math.random() * BOARD_WIDTH);
 
-// --- Unwanted combinations (your set; unchanged) ---
+// --- Unwanted combinations (your set) ---
 const unwantedCombinationsDuringGame = [
   { combination: [16, 21], requiredPositions: [20] },
   { combination: [19, 22], requiredPositions: [23] },
@@ -123,7 +123,7 @@ const unwantedCombinationsDuringGame = [
   { combination: [16, 18, 21, 23], requiredPositions: [20, 22] },
 ];
 
-// ---------- Rule normalizer (dedupe & keep minimal) ----------
+// ---------- Rule normalizer (dedupe & minimal) ----------
 const normalizeRule = (r) => ({
   combination: [...r.combination].sort((a, b) => a - b),
   requiredPositions: [...r.requiredPositions].sort((a, b) => a - b),
@@ -230,10 +230,11 @@ const filterByLookahead = (tiles, candidates) => {
 };
 
 // ---------- UI components ----------
-const Tile = ({ tilePos, number, color, imageUri }) => {
-  // local coords in the 4x4 image (rows 2..5 of board)
-  const lr = localRowOf(number); // 0..3
-  const lc = localColOf(number); // 0..3
+const Tile = ({ tilePos, number, imageUri, showNumbers }) => {
+  // Slice the 4x4 area of the image for this tile's number.
+  const lr = localRowOf(number); // 0..3 (row within the 4x4)
+  const lc = localColOf(number); // 0..3 (col within the 4x4)
+  const displayNumber = number - 7; // 1..16 for UI only
 
   return (
     <View
@@ -253,8 +254,7 @@ const Tile = ({ tilePos, number, color, imageUri }) => {
           transition={100}
         />
       </View>
-      {/* debug label; remove later if you want a pure image look */}
-      <Text style={styles.tileText}>{number}</Text>
+      {showNumbers && <Text style={styles.tileText}>{displayNumber}</Text>}
     </View>
   );
 };
@@ -263,6 +263,7 @@ export default function App() {
   const [groundedTiles, setGroundedTiles] = useState([]);
   const [activeTile, setActiveTile] = useState(null);
   const [isGameOver, setIsGameOver] = useState(false);
+  const [showNumbers, setShowNumbers] = useState(true);
 
   const intervalRef = useRef(null);
   const lockTimeoutRef = useRef(null);
@@ -312,12 +313,7 @@ export default function App() {
     setGroundedTiles((prev) => {
       const newTiles = [
         ...prev,
-        {
-          row: targetRow,
-          col: targetCol,
-          number: activeTile.targetNumber,
-          color: "#9B51E0",
-        },
+        { row: targetRow, col: targetCol, number: activeTile.targetNumber },
       ];
       lastLockedRef.current = activeTile.targetNumber;
 
@@ -348,7 +344,7 @@ export default function App() {
         }
         return { ...prev, row: prev.row + 1 };
       });
-    }, 800);
+    }, 1200);
     return () => clearInterval(intervalRef.current);
   }, [activeTile, groundedTiles, isGameOver]);
 
@@ -406,7 +402,6 @@ export default function App() {
         row: rowOf(num),
         col: colOf(num),
         number: num,
-        color: "yellow",
       }));
       if (chooseSpawn(initialTiles).length > 0) {
         setGroundedTiles(initialTiles);
@@ -435,8 +430,9 @@ export default function App() {
     clearTimeout(lockTimeoutRef.current);
     seedInitial();
   };
+  const onToggleNumbers = () => setShowNumbers((v) => !v);
 
-  // choose grayscale or color bg
+  // choose grayscale or color bg for the 4x4 area
   const bgUri =
     USE_GRAYSCALE_BG && PUZZLE_IMAGE_URI_GRAYSCALE
       ? PUZZLE_IMAGE_URI_GRAYSCALE
@@ -462,10 +458,6 @@ export default function App() {
             contentFit="cover"
             transition={120}
           />
-          {/* Optional dim if you don't have a grayscale URL yet */}
-          {USE_GRAYSCALE_BG && !PUZZLE_IMAGE_URI_GRAYSCALE ? (
-            <View style={styles.dimOverlay} />
-          ) : null}
         </View>
 
         {/* 2) Grid cells (borders visible above background) */}
@@ -479,8 +471,8 @@ export default function App() {
             key={`g-${idx}`}
             tilePos={gridToPixel(tile.row, tile.col)}
             number={tile.number}
-            color={tile.color}
             imageUri={PUZZLE_IMAGE_URI}
+            showNumbers={showNumbers}
           />
         ))}
 
@@ -489,8 +481,8 @@ export default function App() {
           <Tile
             tilePos={gridToPixel(activeTile.row, activeTile.col)}
             number={activeTile.targetNumber}
-            color="#9B51E0"
             imageUri={PUZZLE_IMAGE_URI}
+            showNumbers={showNumbers}
           />
         )}
 
@@ -508,6 +500,16 @@ export default function App() {
         <TouchableOpacity onPress={moveRight} style={styles.button}>
           <Text style={styles.buttonText}>Right</Text>
         </TouchableOpacity>
+
+        <TouchableOpacity
+          onPress={onToggleNumbers}
+          style={[styles.button, { backgroundColor: "#8E44AD" }]}
+        >
+          <Text style={styles.buttonText}>
+            Numbers: {showNumbers ? "On" : "Off"}
+          </Text>
+        </TouchableOpacity>
+
         <TouchableOpacity
           onPress={onNewGame}
           style={[styles.button, { backgroundColor: "#4CAF50" }]}
@@ -596,9 +598,5 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(0,0,0,0.6)",
     paddingVertical: TILE_SIZE * 0.1,
     zIndex: 10,
-  },
-  dimOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0,0,0,0.25)", // gentle dim if no grayscale URL provided
   },
 });
