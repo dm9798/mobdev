@@ -6,6 +6,7 @@ import {
   View,
   Dimensions,
 } from "react-native";
+import { Image } from "expo-image";
 import { useState, useEffect, useRef } from "react";
 
 const { width } = Dimensions.get("window");
@@ -14,20 +15,33 @@ const { width } = Dimensions.get("window");
 const BOARD_WIDTH = 4;
 const BOARD_HEIGHT = 6;
 const BORDER_WIDTH = 1;
-const TILE_SIZE = (width * 0.8) / BOARD_WIDTH;
+const TILE_SIZE = Math.round((width * 0.8) / BOARD_WIDTH); // snap to pixels
 const VALID_POSITIONS = Array.from(
   { length: BOARD_WIDTH * BOARD_HEIGHT },
   (_, i) => i
-).filter((i) => i >= 8 && i <= 23); // 8..23 inclusive (16 targets total)
+).filter((i) => i >= 8 && i <= 23); // rows 2..5 (4x4)
 
-// --- Position helpers ---
-const rowOf = (n) => Math.floor(n / BOARD_WIDTH);
-const colOf = (n) => n % BOARD_WIDTH;
+// --- Image puzzle mode ---
+const PUZZLE_IMAGE_URI =
+  "https://bellahomeco.com.au/cdn/shop/products/9_6d329c09-13b8-4e04-a1ed-b40b01f0d054.jpg";
+
+// If you have a pre-grayscale URL, put it here; otherwise we dim the color image.
+const PUZZLE_IMAGE_URI_GRAYSCALE = ""; // e.g. "https://your-cdn/image-gray.jpg"
+const USE_GRAYSCALE_BG = true; // quick toggle
+
+const IMAGE_SIZE = TILE_SIZE * 4; // 4x4 area
+
+// --- Helpers ---
+const rowOf = (n) => Math.floor(n / BOARD_WIDTH); // 0..5
+const colOf = (n) => n % BOARD_WIDTH; // 0..3
+const localRowOf = (n) => rowOf(n) - 2; // 8..23 => rows 2..5 -> 0..3
+const localColOf = (n) => colOf(n); // 0..3
+const px = (n) => Math.round(n);
 
 // --- Random top-row spawn helper ---
 const randomTopCol = () => Math.floor(Math.random() * BOARD_WIDTH);
 
-// --- Unwanted Combinations (your set) ---
+// --- Unwanted combinations (your set; unchanged) ---
 const unwantedCombinationsDuringGame = [
   { combination: [16, 21], requiredPositions: [20] },
   { combination: [19, 22], requiredPositions: [23] },
@@ -114,7 +128,6 @@ const normalizeRule = (r) => ({
   combination: [...r.combination].sort((a, b) => a - b),
   requiredPositions: [...r.requiredPositions].sort((a, b) => a - b),
 });
-
 const rulesEqual = (a, b) =>
   a.combination.length === b.combination.length &&
   a.requiredPositions.length === b.requiredPositions.length &&
@@ -123,12 +136,8 @@ const rulesEqual = (a, b) =>
 
 const buildNormalizedRules = (rules) => {
   const norm = rules.map(normalizeRule);
-
-  // remove exact duplicates
   const dedup = [];
   for (const r of norm) if (!dedup.some((x) => rulesEqual(x, r))) dedup.push(r);
-
-  // keep minimal rules only
   const minimal = dedup.filter((r, i) => {
     return !dedup.some(
       (s, j) =>
@@ -138,10 +147,8 @@ const buildNormalizedRules = (rules) => {
         s.requiredPositions.every((x) => r.requiredPositions.includes(x))
     );
   });
-
   return minimal;
 };
-
 const RULES = buildNormalizedRules(unwantedCombinationsDuringGame);
 
 // --- Rule check ---
@@ -174,7 +181,6 @@ const getStrictSpawnableTargets = (tiles) => {
       isTargetSupported(num, tiles) && !violatesUnwantedCombination(tiles, num)
   );
 };
-
 const getRelaxedSpawnableTargets = (tiles) => {
   const remainingTargets = VALID_POSITIONS.filter(
     (num) => !tiles.some((t) => t.number === num)
@@ -183,7 +189,6 @@ const getRelaxedSpawnableTargets = (tiles) => {
     (num) => !violatesUnwantedCombination(tiles, num)
   );
 };
-
 const getSpawnableTargetsTwoTier = (tiles) => {
   const strict = getStrictSpawnableTargets(tiles);
   return strict.length > 0 ? strict : getRelaxedSpawnableTargets(tiles);
@@ -196,12 +201,10 @@ const keyFor = (tiles) =>
     .map((t) => t.number)
     .sort((a, b) => a - b)
     .join(",");
-
 function canCompleteFrom(tiles) {
   if (tiles.length === VALID_POSITIONS.length) return true;
   const key = keyFor(tiles);
   if (memo.has(key)) return memo.get(key);
-
   const options = getRelaxedSpawnableTargets(tiles);
   if (options.length === 0) {
     memo.set(key, false);
@@ -217,7 +220,6 @@ function canCompleteFrom(tiles) {
   memo.set(key, false);
   return false;
 }
-
 const filterByLookahead = (tiles, candidates) => {
   const good = [];
   for (const num of candidates) {
@@ -227,17 +229,35 @@ const filterByLookahead = (tiles, candidates) => {
   return good;
 };
 
-// ---------- UI component ----------
-const Tile = ({ tilePos, number, color }) => (
-  <View
-    style={[
-      styles.tile,
-      { top: tilePos.top, left: tilePos.left, backgroundColor: color },
-    ]}
-  >
-    <Text style={styles.tileText}>{number}</Text>
-  </View>
-);
+// ---------- UI components ----------
+const Tile = ({ tilePos, number, color, imageUri }) => {
+  // local coords in the 4x4 image (rows 2..5 of board)
+  const lr = localRowOf(number); // 0..3
+  const lc = localColOf(number); // 0..3
+
+  return (
+    <View
+      style={[styles.tile, { top: px(tilePos.top), left: px(tilePos.left) }]}
+    >
+      <View style={styles.tileMask}>
+        <Image
+          source={{ uri: imageUri }}
+          style={{
+            position: "absolute",
+            width: px(IMAGE_SIZE),
+            height: px(IMAGE_SIZE),
+            top: px(-lr * TILE_SIZE),
+            left: px(-lc * TILE_SIZE),
+          }}
+          contentFit="cover"
+          transition={100}
+        />
+      </View>
+      {/* debug label; remove later if you want a pure image look */}
+      <Text style={styles.tileText}>{number}</Text>
+    </View>
+  );
+};
 
 export default function App() {
   const [groundedTiles, setGroundedTiles] = useState([]);
@@ -263,11 +283,10 @@ export default function App() {
     spawnable = spawnable.filter((num) => !tiles.some((t) => t.number === num));
     const viable = filterByLookahead(tiles, spawnable);
     const pool = viable.length > 0 ? viable : spawnable;
-
     let finalPool = pool;
     if (finalPool.length > 1) {
       finalPool = finalPool.filter((num) => num !== lastLockedRef.current);
-      if (finalPool.length === 0) finalPool = pool; // revert if we filtered all
+      if (finalPool.length === 0) finalPool = pool;
     }
     return finalPool;
   };
@@ -282,7 +301,7 @@ export default function App() {
       return;
     }
     const targetNumber = pool[Math.floor(Math.random() * pool.length)];
-    const startingCol = randomTopCol(); // random top-row column
+    const startingCol = randomTopCol();
     setActiveTile({ row: 0, col: startingCol, targetNumber });
   };
 
@@ -290,7 +309,6 @@ export default function App() {
     if (!activeTile || isGameOver) return;
     const targetRow = rowOf(activeTile.targetNumber);
     const targetCol = colOf(activeTile.targetNumber);
-
     setGroundedTiles((prev) => {
       const newTiles = [
         ...prev,
@@ -330,7 +348,7 @@ export default function App() {
         }
         return { ...prev, row: prev.row + 1 };
       });
-    }, 1200);
+    }, 800);
     return () => clearInterval(intervalRef.current);
   }, [activeTile, groundedTiles, isGameOver]);
 
@@ -344,7 +362,6 @@ export default function App() {
       return prev;
     });
   };
-
   const moveRight = () => {
     if (!activeTile || isGameOver) return;
     setActiveTile((prev) => {
@@ -354,7 +371,6 @@ export default function App() {
       return prev;
     });
   };
-
   const moveDown = () => {
     if (!activeTile || isGameOver) return;
     setActiveTile((prev) => {
@@ -367,7 +383,7 @@ export default function App() {
     });
   };
 
-  // ---------- Initial seeding & reset helpers ----------
+  // ---------- Initial seeding & reset ----------
   const seedInitial = () => {
     memo.clear();
     lastLockedRef.current = null;
@@ -376,7 +392,6 @@ export default function App() {
 
     let initialNumbers = [];
     let safety = 0;
-
     while (safety < 200) {
       const pool = [...VALID_POSITIONS];
       initialNumbers = [];
@@ -387,14 +402,12 @@ export default function App() {
         if (!violatesUnwantedCombination(tentativeTiles, pick))
           initialNumbers.push(pick);
       }
-
       const initialTiles = initialNumbers.map((num) => ({
         row: rowOf(num),
         col: colOf(num),
         number: num,
         color: "yellow",
       }));
-
       if (chooseSpawn(initialTiles).length > 0) {
         setGroundedTiles(initialTiles);
         break;
@@ -411,7 +424,6 @@ export default function App() {
     };
   }, []);
 
-  // spawn only after initial groundedTiles are set / after a clear
   useEffect(() => {
     if (groundedTiles.length > 0 && !activeTile && !isGameOver) {
       spawnTile();
@@ -424,31 +436,65 @@ export default function App() {
     seedInitial();
   };
 
+  // choose grayscale or color bg
+  const bgUri =
+    USE_GRAYSCALE_BG && PUZZLE_IMAGE_URI_GRAYSCALE
+      ? PUZZLE_IMAGE_URI_GRAYSCALE
+      : PUZZLE_IMAGE_URI;
+
   return (
     <View style={styles.container}>
       <View style={styles.board}>
+        {/* 1) Background image under rows 2..5 */}
+        <View
+          style={{
+            position: "absolute",
+            top: 2 * TILE_SIZE,
+            left: 0,
+            width: IMAGE_SIZE,
+            height: IMAGE_SIZE,
+          }}
+          pointerEvents="none"
+        >
+          <Image
+            source={{ uri: bgUri }}
+            style={{ width: "100%", height: "100%" }}
+            contentFit="cover"
+            transition={120}
+          />
+          {/* Optional dim if you don't have a grayscale URL yet */}
+          {USE_GRAYSCALE_BG && !PUZZLE_IMAGE_URI_GRAYSCALE ? (
+            <View style={styles.dimOverlay} />
+          ) : null}
+        </View>
+
+        {/* 2) Grid cells (borders visible above background) */}
         {[...Array(BOARD_HEIGHT * BOARD_WIDTH)].map((_, i) => (
           <View key={i} style={styles.cell} />
         ))}
 
+        {/* 3) Grounded tiles */}
         {groundedTiles.map((tile, idx) => (
           <Tile
             key={`g-${idx}`}
             tilePos={gridToPixel(tile.row, tile.col)}
             number={tile.number}
             color={tile.color}
+            imageUri={PUZZLE_IMAGE_URI}
           />
         ))}
 
+        {/* 4) Active tile */}
         {activeTile && (
           <Tile
             tilePos={gridToPixel(activeTile.row, activeTile.col)}
             number={activeTile.targetNumber}
             color="#9B51E0"
+            imageUri={PUZZLE_IMAGE_URI}
           />
         )}
 
-        {/* Absolute "GAME OVER" overlay at row 4 (index 3) */}
+        {/* 5) Game over overlay */}
         {isGameOver && <Text style={styles.gameOverText}>GAME OVER</Text>}
       </View>
 
@@ -494,7 +540,7 @@ const styles = StyleSheet.create({
     width: TILE_SIZE,
     height: TILE_SIZE,
     borderWidth: BORDER_WIDTH,
-    borderColor: "black",
+    borderColor: "rgba(0,0,0,0.35)", // visible grid
   },
   tile: {
     width: TILE_SIZE,
@@ -503,10 +549,22 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
+  tileMask: {
+    width: TILE_SIZE,
+    height: TILE_SIZE,
+    overflow: "hidden",
+    backgroundColor: "transparent",
+  },
   tileText: {
+    position: "absolute",
+    bottom: 2,
+    right: 4,
     color: "white",
     fontWeight: "bold",
-    fontSize: TILE_SIZE / 3,
+    fontSize: TILE_SIZE / 4,
+    textShadowColor: "rgba(0,0,0,0.6)",
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   },
   controls: {
     flexDirection: "row",
@@ -528,15 +586,19 @@ const styles = StyleSheet.create({
   },
   gameOverText: {
     position: "absolute",
-    top: 3 * TILE_SIZE, // 4th row (row index 3)
+    top: 3 * TILE_SIZE, // 4th row
     left: 0,
     width: BOARD_WIDTH * TILE_SIZE,
     textAlign: "center",
     fontSize: TILE_SIZE / 2,
     fontWeight: "bold",
     color: "red",
-    backgroundColor: "rgba(0,0,0,0.6)", // optional: translucent backdrop
+    backgroundColor: "rgba(0,0,0,0.6)",
     paddingVertical: TILE_SIZE * 0.1,
     zIndex: 10,
+  },
+  dimOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(0,0,0,0.25)", // gentle dim if no grayscale URL provided
   },
 });
