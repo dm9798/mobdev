@@ -7,7 +7,7 @@ import {
   Dimensions,
 } from "react-native";
 import { Image } from "expo-image";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 
 const { width } = Dimensions.get("window");
 
@@ -24,21 +24,17 @@ const VALID_POSITIONS = Array.from(
 // --- Image puzzle URIs ---
 const PUZZLE_IMAGE_URI =
   "https://bellahomeco.com.au/cdn/shop/products/9_6d329c09-13b8-4e04-a1ed-b40b01f0d054.jpg";
-
-// Grayscale board background provided by you:
 const PUZZLE_IMAGE_URI_GRAYSCALE = "https://i.imghippo.com/files/k1057el.jpg";
-const USE_GRAYSCALE_BG = true; // quick toggle
+const USE_GRAYSCALE_BG = true;
 
-const IMAGE_SIZE = TILE_SIZE * 4; // 4x4 area
+const IMAGE_SIZE = TILE_SIZE * 4;
 
 // --- Helpers ---
 const rowOf = (n) => Math.floor(n / BOARD_WIDTH); // 0..5
 const colOf = (n) => n % BOARD_WIDTH; // 0..3
 const localRowOf = (n) => rowOf(n) - 2; // 8..23 => rows 2..5 -> 0..3
-const localColOf = (n) => colOf(n); // 0..3
+const localColOf = (n) => colOf(n);
 const px = (n) => Math.round(n);
-
-// --- Random top-row spawn helper ---
 const randomTopCol = () => Math.floor(Math.random() * BOARD_WIDTH);
 
 // --- Unwanted combinations (your set) ---
@@ -229,12 +225,35 @@ const filterByLookahead = (tiles, candidates) => {
   return good;
 };
 
-// ---------- UI components ----------
-const Tile = ({ tilePos, number, imageUri, showNumbers }) => {
-  // Slice the 4x4 area of the image for this tile's number.
-  const lr = localRowOf(number); // 0..3 (row within the 4x4)
-  const lc = localColOf(number); // 0..3 (col within the 4x4)
+// ---------- Tile Component (centralized border logic) ----------
+const Tile = ({
+  tilePos,
+  number,
+  imageUri,
+  showNumbers,
+  isGrounded = false,
+  isActive = false,
+  groundedSet, // pass Set of grounded numbers when isGrounded
+}) => {
+  const lr = localRowOf(number); // 0..3 within 4x4
+  const lc = localColOf(number);
   const displayNumber = number - 7; // 1..16 for UI only
+
+  // Compute per-edge exposure for grounded tiles
+  let borders = { top: true, right: true, bottom: true, left: true };
+  if (isGrounded && groundedSet) {
+    const r = rowOf(number);
+    const c = colOf(number);
+    const up = number - BOARD_WIDTH;
+    const down = number + BOARD_WIDTH;
+    const left = number - 1;
+    const right = number + 1;
+
+    borders.top = r === 2 ? true : !groundedSet.has(up);
+    borders.bottom = r === 5 ? true : !groundedSet.has(down);
+    borders.left = c === 0 ? true : !groundedSet.has(left);
+    borders.right = c === BOARD_WIDTH - 1 ? true : !groundedSet.has(right);
+  }
 
   return (
     <View
@@ -254,6 +273,35 @@ const Tile = ({ tilePos, number, imageUri, showNumbers }) => {
           transition={100}
         />
       </View>
+
+      {/* Centralized border handling */}
+      {isGrounded ? (
+        <View
+          pointerEvents="none"
+          style={[
+            StyleSheet.absoluteFill,
+            {
+              borderColor: "yellow",
+              borderTopWidth: borders.top ? 3 : 0,
+              borderRightWidth: borders.right ? 3 : 0,
+              borderBottomWidth: borders.bottom ? 3 : 0,
+              borderLeftWidth: borders.left ? 3 : 0,
+            },
+          ]}
+        />
+      ) : isActive ? (
+        <View
+          pointerEvents="none"
+          style={[
+            StyleSheet.absoluteFill,
+            {
+              borderColor: "red", // red
+              borderWidth: 3,
+            },
+          ]}
+        />
+      ) : null}
+
       {showNumbers && <Text style={styles.tileText}>{displayNumber}</Text>}
     </View>
   );
@@ -277,6 +325,12 @@ export default function App() {
     groundedTiles.some((t) => t.row === row && t.col === col);
   const canMoveDown = (row, col) =>
     row + 1 < BOARD_HEIGHT && !isCellOccupied(row + 1, col);
+
+  // Build a Set of grounded numbers (used by Tile for borders)
+  const groundedSet = useMemo(
+    () => new Set(groundedTiles.map((t) => t.number)),
+    [groundedTiles]
+  );
 
   // ---------- Spawning (two-tier + look-ahead) ----------
   const chooseSpawn = (tiles) => {
@@ -403,7 +457,7 @@ export default function App() {
         col: colOf(num),
         number: num,
       }));
-      if (chooseSpawn(initialTiles).length > 0) {
+      if (getSpawnableTargetsTwoTier(initialTiles).length > 0) {
         setGroundedTiles(initialTiles);
         break;
       }
@@ -432,7 +486,6 @@ export default function App() {
   };
   const onToggleNumbers = () => setShowNumbers((v) => !v);
 
-  // choose grayscale or color bg for the 4x4 area
   const bgUri =
     USE_GRAYSCALE_BG && PUZZLE_IMAGE_URI_GRAYSCALE
       ? PUZZLE_IMAGE_URI_GRAYSCALE
@@ -473,6 +526,9 @@ export default function App() {
             number={tile.number}
             imageUri={PUZZLE_IMAGE_URI}
             showNumbers={showNumbers}
+            isGrounded={true}
+            isActive={false}
+            groundedSet={groundedSet}
           />
         ))}
 
@@ -483,6 +539,8 @@ export default function App() {
             number={activeTile.targetNumber}
             imageUri={PUZZLE_IMAGE_URI}
             showNumbers={showNumbers}
+            isGrounded={false}
+            isActive={true}
           />
         )}
 
@@ -542,7 +600,7 @@ const styles = StyleSheet.create({
     width: TILE_SIZE,
     height: TILE_SIZE,
     borderWidth: BORDER_WIDTH,
-    borderColor: "rgba(0,0,0,0.35)", // visible grid
+    borderColor: "rgba(0,0,0,0.35)",
   },
   tile: {
     width: TILE_SIZE,
