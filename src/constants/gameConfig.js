@@ -23,10 +23,14 @@ export const VALID_POSITIONS = Array.from(
 
 // export const PUZZLE_IMAGE_URI_GRAYSCALE =
 //   "https://i.imghippo.com/files/k1057el.jpg";
-export const PUZZLE_IMAGE_URI = "https://i.imghippo.com/files/dwo2733Cs.jpg";
+export const PUZZLE_IMAGE_URI = "https://i.imghippo.com/files/QIm7492PvA.jpg";
 
 export const PUZZLE_IMAGE_URI_GRAYSCALE =
-  "https://i.imghippo.com/files/eRJu5089.jpg";
+  "https://i.imghippo.com/files/lGDK7647LHc.jpg";
+// export const PUZZLE_IMAGE_URI = "https://i.imghippo.com/files/dwo2733Cs.jpg";
+
+// export const PUZZLE_IMAGE_URI_GRAYSCALE =
+//   "https://i.imghippo.com/files/eRJu5089.jpg";
 
 // Toggle grayscale background of the 4x4 area
 export const USE_GRAYSCALE_BG = true;
