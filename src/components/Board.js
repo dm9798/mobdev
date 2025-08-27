@@ -10,6 +10,7 @@ import {
   PUZZLE_IMAGE_URI,
   PUZZLE_IMAGE_URI_GRAYSCALE,
   USE_GRAYSCALE_BG,
+  VALID_POSITIONS,
 } from "../constants/gameConfig";
 import { Tile } from "./Tile";
 
@@ -19,6 +20,7 @@ export const Board = ({
   isGameOver,
   isWon,
   showNumbers,
+  fadeBg,
 }) => {
   // build a set of grounded numbers for per-edge border logic
   const groundedSet = useMemo(
@@ -37,6 +39,9 @@ export const Board = ({
       ? PUZZLE_IMAGE_URI_GRAYSCALE
       : PUZZLE_IMAGE_URI;
 
+  const progress = groundedTiles.length / VALID_POSITIONS.length; // 0..1
+  const bgOpacity = fadeBg ? 1 - progress : 1; // linear fade
+
   return (
     <View style={styles.board}>
       {/* Background image under rows 2..5 (the 4x4 area) */}
@@ -53,7 +58,7 @@ export const Board = ({
         <Image
           source={{ uri: bgUri }}
           cachePolicy="memory-disk"
-          style={{ width: "100%", height: "100%" }}
+          style={{ width: "100%", height: "100%", opacity: bgOpacity }}
           contentFit="cover"
           transition={120}
         />

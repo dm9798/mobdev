@@ -18,11 +18,15 @@ export const VALID_POSITIONS = Array.from(
 ).filter((i) => i >= 8 && i <= 23);
 
 // --- Image puzzle URIs ---
-export const PUZZLE_IMAGE_URI =
-  "https://bellahomeco.com.au/cdn/shop/products/9_6d329c09-13b8-4e04-a1ed-b40b01f0d054.jpg";
+// export const PUZZLE_IMAGE_URI =
+//   "https://bellahomeco.com.au/cdn/shop/products/9_6d329c09-13b8-4e04-a1ed-b40b01f0d054.jpg";
+
+// export const PUZZLE_IMAGE_URI_GRAYSCALE =
+//   "https://i.imghippo.com/files/k1057el.jpg";
+export const PUZZLE_IMAGE_URI = "https://i.imghippo.com/files/dwo2733Cs.jpg";
 
 export const PUZZLE_IMAGE_URI_GRAYSCALE =
-  "https://i.imghippo.com/files/k1057el.jpg";
+  "https://i.imghippo.com/files/eRJu5089.jpg";
 
 // Toggle grayscale background of the 4x4 area
 export const USE_GRAYSCALE_BG = true;

@@ -21,6 +21,7 @@ export const useGameState = () => {
   const [isGameOver, setIsGameOver] = useState(false);
   const [isWon, setIsWon] = useState(false);
   const [showNumbers, setShowNumbers] = useState(true);
+  const [fadeBg, setFadeBg] = useState(true);
 
   const intervalRef = useRef(null);
   const lockTimeoutRef = useRef(null);
@@ -216,12 +217,14 @@ export const useGameState = () => {
       isWon,
       showNumbers,
       tilesLeft,
+      fadeBg,
     },
     actions: {
       moveLeft,
       moveRight,
       moveDown,
       toggleNumbers: () => setShowNumbers((v) => !v),
+      toggleFadeBg: () => setFadeBg((v) => !v),
       newGame: seedInitial,
     },
   };

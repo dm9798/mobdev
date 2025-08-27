@@ -5,7 +5,7 @@ export const useGravity = ({
   activeTile,
   canMoveDown,
   onLock,
-  speed = 500,
+  speed = 800,
   enabled = true,
 }) => {
   const intervalRef = useRef(null);

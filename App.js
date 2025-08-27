@@ -24,6 +24,7 @@ export default function App() {
         puzzleUri={PUZZLE_IMAGE_URI}
         puzzleGrayUri={PUZZLE_IMAGE_URI_GRAYSCALE}
         useGrayscale
+        fadeBg={state.fadeBg}
       />
       <Progress tilesLeft={state.tilesLeft} />
       <Controls
@@ -32,6 +33,7 @@ export default function App() {
         onRight={actions.moveRight}
         onToggleNumbers={actions.toggleNumbers}
         onNewGame={actions.newGame}
+        onToggleFadeBg={actions.toggleFadeBg}
       />
       <StatusBar style="auto" />
     </View>

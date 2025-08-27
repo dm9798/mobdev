@@ -7,6 +7,7 @@ export const Controls = ({
   onRight,
   onToggleNumbers,
   onNewGame,
+  onToggleFadeBg,
 }) => (
   <View style={styles.controls}>
     <TouchableOpacity onPress={onLeft} style={styles.button}>
@@ -29,6 +30,12 @@ export const Controls = ({
       style={[styles.button, { backgroundColor: "#4CAF50" }]}
     >
       <Text style={styles.text}>New Game</Text>
+    </TouchableOpacity>
+    <TouchableOpacity
+      onPress={onToggleFadeBg}
+      style={[styles.button, { backgroundColor: "#FF9800" }]}
+    >
+      <Text style={styles.text}>Fade BG</Text>
     </TouchableOpacity>
   </View>
 );
