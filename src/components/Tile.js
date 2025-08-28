@@ -1,9 +1,16 @@
 import React from "react";
 import { View, Text, StyleSheet } from "react-native";
 import { Image } from "expo-image";
-import { TILE_SIZE, IMAGE_SIZE, BOARD_WIDTH } from "../constants/gameConfig";
+import {
+  TILE_SIZE,
+  IMAGE_SIZE,
+  BOARD_WIDTH,
+  BOARD_HEIGHT,
+  PUZZLE_START_ROW,
+  VALID_POSITIONS,
+} from "../constants/gameConfig";
 
-import { localRowOf, localColOf, rowOf, colOf, px } from "../utils/positions";
+import { localColOf, rowOf, colOf, px } from "../utils/positions";
 
 export const Tile = ({
   tilePos,
@@ -14,9 +21,11 @@ export const Tile = ({
   isActive = false,
   groundedSet, // pass Set of numbers for neighbors
 }) => {
-  const lr = localRowOf(number);
+  const lr = rowOf(number) - PUZZLE_START_ROW; // 3x3 starts at dynamic start row
   const lc = localColOf(number);
-  const displayNumber = number - 7;
+
+  const base = VALID_POSITIONS[0]; // first target index (e.g., 6)
+  const displayNumber = number - (base - 1); // maps [6..14] to [1..9]
 
   let borders = { top: true, right: true, bottom: true, left: true };
   if (isGrounded && groundedSet) {
@@ -27,8 +36,8 @@ export const Tile = ({
     const left = number - 1;
     const right = number + 1;
 
-    borders.top = r === 2 ? true : !groundedSet.has(up);
-    borders.bottom = r === 5 ? true : !groundedSet.has(down);
+    borders.top = r === PUZZLE_START_ROW ? true : !groundedSet.has(up);
+    borders.bottom = r === BOARD_HEIGHT - 1 ? true : !groundedSet.has(down);
     borders.left = c === 0 ? true : !groundedSet.has(left);
     borders.right = c === BOARD_WIDTH - 1 ? true : !groundedSet.has(right);
   }
@@ -45,8 +54,8 @@ export const Tile = ({
             position: "absolute",
             width: px(IMAGE_SIZE),
             height: px(IMAGE_SIZE),
-            top: px(-lr * TILE_SIZE),
-            left: px(-lc * TILE_SIZE),
+            top: -lr * TILE_SIZE,
+            left: -lc * TILE_SIZE,
           }}
           contentFit="cover"
           transition={100}

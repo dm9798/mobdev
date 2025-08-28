@@ -1,9 +1,9 @@
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   BOARD_WIDTH,
   BOARD_HEIGHT,
-  TILE_SIZE,
   VALID_POSITIONS,
+  INITIAL_GROUNDED_COUNT, // make sure this is 2 in your gameConfig
 } from "../constants/gameConfig";
 
 import { rowOf, colOf } from "../utils/positions";
@@ -20,12 +20,18 @@ export const useGameState = () => {
   const [activeTile, setActiveTile] = useState(null);
   const [isGameOver, setIsGameOver] = useState(false);
   const [isWon, setIsWon] = useState(false);
+
+  // NEW: preview phase + countdown (3 -> 2 -> 1 -> 0)
+  const [isPreviewing, setIsPreviewing] = useState(false);
+  const [countdown, setCountdown] = useState(0);
+
   const [showNumbers, setShowNumbers] = useState(true);
-  const [fadeBg, setFadeBg] = useState(true);
+  const [fadeBg, setFadeBg] = useState(false); // not used in memory mode, leave off
 
   const intervalRef = useRef(null);
   const lockTimeoutRef = useRef(null);
   const lastLockedRef = useRef(null);
+  const previewTimerRef = useRef(null);
 
   const tilesLeft = VALID_POSITIONS.length - groundedTiles.length;
 
@@ -50,7 +56,7 @@ export const useGameState = () => {
   };
 
   const spawnTile = () => {
-    if (isGameOver || isWon) return;
+    if (isGameOver || isWon || isPreviewing) return;
     const pool = chooseSpawn(groundedTiles);
     if (!pool.length) {
       setActiveTile(null);
@@ -62,12 +68,11 @@ export const useGameState = () => {
   };
 
   const lockAndTeleport = () => {
-    if (!activeTile || isGameOver || isWon) return;
+    if (!activeTile || isGameOver || isWon || isPreviewing) return;
     const targetRow = rowOf(activeTile.targetNumber);
     const targetCol = colOf(activeTile.targetNumber);
 
     setGroundedTiles((prev) => {
-      // Avoid ever inserting a duplicate (belt-and-braces)
       if (prev.some((t) => t.number === activeTile.targetNumber)) {
         console.warn("Duplicate target prevented:", activeTile.targetNumber);
         return prev;
@@ -79,20 +84,18 @@ export const useGameState = () => {
       ];
       lastLockedRef.current = activeTile.targetNumber;
 
-      // WIN CHECK — exact set equality against VALID_POSITIONS
+      // Win check: exact set equality
       const placed = new Set(newTiles.map((t) => t.number));
       const allPlaced = VALID_POSITIONS.every((n) => placed.has(n));
       if (allPlaced) {
         setActiveTile(null);
-        setIsGameOver(false); // ensure lose flag isn't lingering
+        setIsGameOver(false);
         setIsWon(true);
         return newTiles;
       }
 
-      // otherwise continue spawning
       const pool = chooseSpawn(newTiles);
-      if (pool.length === 0) {
-        console.log("No valid spawn targets remain. Game over.");
+      if (!pool.length) {
         setActiveTile(null);
         setIsWon(false);
         setIsGameOver(true);
@@ -105,9 +108,9 @@ export const useGameState = () => {
     });
   };
 
-  // gravity (inline; keep as-is from your current app if you prefer)
+  // Gravity — paused during preview
   useEffect(() => {
-    if (!activeTile || isGameOver || isWon) return;
+    if (!activeTile || isGameOver || isWon || isPreviewing) return;
     intervalRef.current = setInterval(() => {
       setActiveTile((prev) => {
         if (!prev) return null;
@@ -120,63 +123,38 @@ export const useGameState = () => {
       });
     }, 1200);
     return () => clearInterval(intervalRef.current);
-  }, [activeTile, groundedTiles, isGameOver, isWon]);
+  }, [activeTile, groundedTiles, isGameOver, isWon, isPreviewing]);
 
-  //Debug helper checking if isWon flag is set but the board isn't actually complete
-  useEffect(() => {
-    const placed = new Set(groundedTiles.map((t) => t.number));
-    const missing = VALID_POSITIONS.filter((n) => !placed.has(n));
-    if (isWon && missing.length) {
-      console.warn("Won but missing tiles?!", missing);
-    }
-  }, [groundedTiles, isWon]);
+  const startPreview = () => {
+    // 3-second countdown: 3,2,1, then go
+    setIsPreviewing(true);
+    setCountdown(3);
 
-  const moveLeft = () => {
-    if (!activeTile || isGameOver || isWon) return;
-    setActiveTile((p) => {
-      const newCol = p.col - 1;
-      return newCol >= 0 && !isCellOccupied(p.row, newCol)
-        ? { ...p, col: newCol }
-        : p;
-    });
+    clearInterval(previewTimerRef.current);
+    previewTimerRef.current = setInterval(() => {
+      setCountdown((c) => {
+        if (c <= 1) {
+          clearInterval(previewTimerRef.current);
+          setIsPreviewing(false);
+          // after preview ends, seed initial tiles and spawn
+          setTimeout(seedInitialAfterPreview, 0);
+          return 0;
+        }
+        return c - 1;
+      });
+    }, 1000);
   };
 
-  const moveRight = () => {
-    if (!activeTile || isGameOver || isWon) return;
-    setActiveTile((p) => {
-      const newCol = p.col + 1;
-      return newCol < BOARD_WIDTH && !isCellOccupied(p.row, newCol)
-        ? { ...p, col: newCol }
-        : p;
-    });
-  };
-
-  const moveDown = () => {
-    if (!activeTile || isGameOver || isWon) return;
-    setActiveTile((p) => {
-      if (p.row === BOARD_HEIGHT - 1 || !canMoveDown(p.row, p.col)) {
-        clearInterval(intervalRef.current);
-        lockTimeoutRef.current = setTimeout(lockAndTeleport, 200);
-        return p;
-      }
-      return { ...p, row: p.row + 1 };
-    });
-  };
-
-  const seedInitial = () => {
-    clearSpawnMemo();
-    lastLockedRef.current = null;
-    setActiveTile(null);
-    setIsGameOver(false);
-    setIsWon(false);
-
+  const seedInitialAfterPreview = () => {
+    // do NOT re-clear preview flags here
+    // seed 2 grounded tiles, then spawn first active
     let initialNumbers = [];
     let safety = 0;
 
     while (safety < 200) {
       const pool = [...VALID_POSITIONS];
       initialNumbers = [];
-      while (initialNumbers.length < 3 && pool.length) {
+      while (initialNumbers.length < INITIAL_GROUNDED_COUNT && pool.length) {
         const idx = Math.floor(Math.random() * pool.length);
         const pick = pool.splice(idx, 1)[0];
         const temp = initialNumbers.map((n) => ({ number: n }));
@@ -193,21 +171,50 @@ export const useGameState = () => {
       }
       safety++;
     }
+    // spawn first active tile once groundedTiles are set (effect below will call spawn)
+  };
+
+  const seedNewGame = () => {
+    clearSpawnMemo();
+    lastLockedRef.current = null;
+    setActiveTile(null);
+    setGroundedTiles([]);
+    setIsGameOver(false);
+    setIsWon(false);
+    // kick off preview phase
+    startPreview();
   };
 
   useEffect(() => {
-    seedInitial();
+    seedNewGame();
     return () => {
       clearInterval(intervalRef.current);
       clearTimeout(lockTimeoutRef.current);
+      clearInterval(previewTimerRef.current);
     };
   }, []);
 
+  // spawn after initial grounded tiles appear (and not during preview)
   useEffect(() => {
-    if (groundedTiles.length > 0 && !activeTile && !isGameOver && !isWon) {
+    if (
+      groundedTiles.length > 0 &&
+      !activeTile &&
+      !isGameOver &&
+      !isWon &&
+      !isPreviewing
+    ) {
       spawnTile();
     }
-  }, [groundedTiles, isGameOver, isWon]);
+  }, [groundedTiles, isGameOver, isWon, isPreviewing]);
+
+  // Debug: sanity check win flag
+  useEffect(() => {
+    const placed = new Set(groundedTiles.map((t) => t.number));
+    const missing = VALID_POSITIONS.filter((n) => !placed.has(n));
+    if (isWon && missing.length) {
+      console.warn("Won but missing tiles?!", missing);
+    }
+  }, [groundedTiles, isWon]);
 
   return {
     state: {
@@ -215,17 +222,45 @@ export const useGameState = () => {
       activeTile,
       isGameOver,
       isWon,
+      isPreviewing,
+      countdown, // 3..0 (show when isPreviewing)
       showNumbers,
       tilesLeft,
       fadeBg,
     },
     actions: {
-      moveLeft,
-      moveRight,
-      moveDown,
+      moveLeft: () => {
+        if (!activeTile || isGameOver || isWon || isPreviewing) return;
+        setActiveTile((p) => {
+          const newCol = p.col - 1;
+          return newCol >= 0 && !isCellOccupied(p.row, newCol)
+            ? { ...p, col: newCol }
+            : p;
+        });
+      },
+      moveRight: () => {
+        if (!activeTile || isGameOver || isWon || isPreviewing) return;
+        setActiveTile((p) => {
+          const newCol = p.col + 1;
+          return newCol < BOARD_WIDTH && !isCellOccupied(p.row, newCol)
+            ? { ...p, col: newCol }
+            : p;
+        });
+      },
+      moveDown: () => {
+        if (!activeTile || isGameOver || isWon || isPreviewing) return;
+        setActiveTile((p) => {
+          if (p.row === BOARD_HEIGHT - 1 || !canMoveDown(p.row, p.col)) {
+            clearInterval(intervalRef.current);
+            lockTimeoutRef.current = setTimeout(lockAndTeleport, 200);
+            return p;
+          }
+          return { ...p, row: p.row + 1 };
+        });
+      },
       toggleNumbers: () => setShowNumbers((v) => !v),
-      toggleFadeBg: () => setFadeBg((v) => !v),
-      newGame: seedInitial,
+      toggleFadeBg: () => setFadeBg((v) => !v), // unused in memory mode, but harmless
+      newGame: seedNewGame,
     },
   };
 };

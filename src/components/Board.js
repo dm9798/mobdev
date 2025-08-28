@@ -8,8 +8,7 @@ import {
   IMAGE_SIZE,
   BORDER_WIDTH,
   PUZZLE_IMAGE_URI,
-  PUZZLE_IMAGE_URI_GRAYSCALE,
-  USE_GRAYSCALE_BG,
+  PUZZLE_START_ROW,
   VALID_POSITIONS,
 } from "../constants/gameConfig";
 import { Tile } from "./Tile";
@@ -19,88 +18,90 @@ export const Board = ({
   activeTile,
   isGameOver,
   isWon,
+  isPreviewing,
+  countdown, // 3..0 during preview
   showNumbers,
-  fadeBg,
 }) => {
-  // build a set of grounded numbers for per-edge border logic
   const groundedSet = useMemo(
     () => new Set(groundedTiles.map((t) => t.number)),
     [groundedTiles]
   );
 
-  // pixel coords from grid coords
   const gridToPixel = (row, col) => ({
     top: row * TILE_SIZE,
     left: col * TILE_SIZE,
   });
 
-  const bgUri =
-    USE_GRAYSCALE_BG && PUZZLE_IMAGE_URI_GRAYSCALE
-      ? PUZZLE_IMAGE_URI_GRAYSCALE
-      : PUZZLE_IMAGE_URI;
-
-  const progress = groundedTiles.length / VALID_POSITIONS.length; // 0..1
-  const bgOpacity = fadeBg ? 1 - progress : 1; // linear fade
-
   return (
     <View style={styles.board}>
-      {/* Background image under rows 2..5 (the 4x4 area) */}
-      <View
-        style={{
-          position: "absolute",
-          top: 2 * TILE_SIZE,
-          left: 0,
-          width: IMAGE_SIZE,
-          height: IMAGE_SIZE,
-        }}
-        pointerEvents="none"
-      >
-        <Image
-          source={{ uri: bgUri }}
-          cachePolicy="memory-disk"
-          style={{ width: "100%", height: "100%", opacity: bgOpacity }}
-          contentFit="cover"
-          transition={120}
-        />
-      </View>
+      {/* Preview phase: show the completed picture only (no grid, no borders) */}
+      {isPreviewing ? (
+        <>
+          <View
+            style={{
+              position: "absolute",
+              top: PUZZLE_START_ROW * TILE_SIZE,
+              left: 0,
+              width: IMAGE_SIZE,
+              height: IMAGE_SIZE,
+            }}
+            pointerEvents="none"
+          >
+            <Image
+              source={{ uri: PUZZLE_IMAGE_URI }}
+              cachePolicy="memory-disk"
+              style={{ width: "100%", height: "100%" }}
+              contentFit="cover"
+              transition={120}
+            />
+          </View>
 
-      {/* Grid (drawn over background) */}
-      {[...Array(BOARD_HEIGHT * BOARD_WIDTH)].map((_, i) => (
-        <View key={i} style={styles.cell} />
-      ))}
+          {/* Big countdown overlay */}
+          {countdown > 0 && (
+            <Text style={styles.previewCountdown}>{countdown}</Text>
+          )}
+        </>
+      ) : (
+        <>
+          {/* Grid (drawn during gameplay; board is otherwise blank) */}
+          {[...Array(BOARD_HEIGHT * BOARD_WIDTH)].map((_, i) => (
+            <View key={i} style={styles.cell} />
+          ))}
 
-      {/* Grounded tiles */}
-      {groundedTiles.map((tile) => (
-        <Tile
-          key={tile.number} // stable key by target number
-          tilePos={gridToPixel(tile.row, tile.col)}
-          number={tile.number}
-          imageUri={PUZZLE_IMAGE_URI}
-          showNumbers={showNumbers}
-          isGrounded
-          groundedSet={groundedSet}
-        />
-      ))}
+          {/* Grounded tiles with borders */}
+          {groundedTiles.map((tile) => (
+            <Tile
+              key={tile.number}
+              tilePos={gridToPixel(tile.row, tile.col)}
+              number={tile.number}
+              imageUri={PUZZLE_IMAGE_URI}
+              showNumbers={showNumbers}
+              isGrounded
+              groundedSet={groundedSet}
+            />
+          ))}
 
-      {/* Active tile */}
-      {activeTile && (
-        <Tile
-          tilePos={gridToPixel(activeTile.row, activeTile.col)}
-          number={activeTile.targetNumber}
-          imageUri={PUZZLE_IMAGE_URI}
-          showNumbers={showNumbers}
-          isActive
-        />
-      )}
+          {/* Active tile */}
+          {activeTile && (
+            <Tile
+              tilePos={gridToPixel(activeTile.row, activeTile.col)}
+              number={activeTile.targetNumber}
+              imageUri={PUZZLE_IMAGE_URI}
+              showNumbers={showNumbers}
+              isActive
+            />
+          )}
 
-      {/* Overlays */}
-      {isWon && (
-        <Text style={[styles.overlayText, { color: "lime" }]}>
-          PUZZLE COMPLETE
-        </Text>
-      )}
-      {isGameOver && !isWon && (
-        <Text style={styles.overlayText}>GAME OVER</Text>
+          {/* Overlays */}
+          {isWon && (
+            <Text style={[styles.overlayText, { color: "lime" }]}>
+              PUZZLE COMPLETE
+            </Text>
+          )}
+          {isGameOver && !isWon && (
+            <Text style={styles.overlayText}>GAME OVER</Text>
+          )}
+        </>
       )}
     </View>
   );
@@ -123,7 +124,7 @@ const styles = StyleSheet.create({
   },
   overlayText: {
     position: "absolute",
-    top: 3 * TILE_SIZE, // 4th row
+    top: 2 * TILE_SIZE, // middle-ish for 5 rows
     left: 0,
     width: BOARD_WIDTH * TILE_SIZE,
     textAlign: "center",
@@ -133,5 +134,18 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(0,0,0,0.6)",
     paddingVertical: TILE_SIZE * 0.1,
     zIndex: 10,
+  },
+  previewCountdown: {
+    position: "absolute",
+    top: (BOARD_HEIGHT * TILE_SIZE) / 2 - TILE_SIZE * 0.6,
+    left: 0,
+    width: BOARD_WIDTH * TILE_SIZE,
+    textAlign: "center",
+    fontSize: TILE_SIZE * 1.4,
+    fontWeight: "900",
+    color: "white",
+    textShadowColor: "rgba(0,0,0,0.75)",
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 6,
   },
 });
