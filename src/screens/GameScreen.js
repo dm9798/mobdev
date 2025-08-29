@@ -6,26 +6,19 @@ import { Controls } from "../components/Controls";
 import { useGameState } from "../hooks/useGameState";
 
 export default function GameScreen() {
+  const { state, actions } = useGameState();
+
   const {
-    state: {
-      groundedTiles,
-      activeTile,
-      isGameOver,
-      isWon,
-      isPreviewing,
-      countdown,
-      showNumbers,
-      fadeBg,
-    },
-    actions: {
-      moveLeft,
-      moveRight,
-      moveDown,
-      toggleNumbers,
-      toggleFadeBg,
-      newGame,
-    },
-  } = useGameState();
+    groundedTiles,
+    activeTile,
+    isGameOver,
+    isWon,
+    isPreviewing,
+    countdown,
+    effects,
+  } = state;
+
+  const { moveLeft, moveRight, moveDown, newGame } = actions;
 
   return (
     <View style={styles.container}>
@@ -36,20 +29,16 @@ export default function GameScreen() {
         isWon={isWon}
         isPreviewing={isPreviewing}
         countdown={countdown}
-        showNumbers={showNumbers}
-        fadeBg={fadeBg}
+        effects={effects}
       />
 
       <Controls
         isPreviewing={isPreviewing}
         isGameOver={isGameOver}
         isWon={isWon}
-        showNumbers={showNumbers}
         moveLeft={moveLeft}
         moveRight={moveRight}
         moveDown={moveDown}
-        toggleNumbers={toggleNumbers}
-        toggleFadeBg={toggleFadeBg} // optional
         newGame={newGame}
       />
     </View>

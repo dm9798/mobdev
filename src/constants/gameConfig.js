@@ -28,7 +28,8 @@ export const VALID_POSITIONS = Array.from(
 ); // => [6..14] for 5x3 grid
 
 /** Image puzzle URIs **/
-export const PUZZLE_IMAGE_URI = "https://i.imghippo.com/files/QIm7492PvA.jpg";
+export const PUZZLE_IMAGE_URI =
+  "https://bellahomeco.com.au/cdn/shop/products/9_6d329c09-13b8-4e04-a1ed-b40b01f0d054.jpg";
 export const PUZZLE_IMAGE_URI_GRAYSCALE =
   "https://i.imghippo.com/files/k1057el.jpg";
 export const USE_GRAYSCALE_BG = true;

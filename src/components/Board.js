@@ -1,3 +1,4 @@
+// src/components/Board.js
 import React, { useMemo } from "react";
 import { View, Text, StyleSheet } from "react-native";
 import { Image } from "expo-image";
@@ -9,9 +10,9 @@ import {
   BORDER_WIDTH,
   PUZZLE_IMAGE_URI,
   PUZZLE_START_ROW,
-  VALID_POSITIONS,
 } from "../constants/gameConfig";
 import { Tile } from "./Tile";
+import Flash from "./Flash";
 
 export const Board = ({
   groundedTiles,
@@ -19,8 +20,8 @@ export const Board = ({
   isGameOver,
   isWon,
   isPreviewing,
-  countdown, // 3..0 during preview
-  showNumbers,
+  countdown,
+  effects = [],
 }) => {
   const groundedSet = useMemo(
     () => new Set(groundedTiles.map((t) => t.number)),
@@ -34,7 +35,6 @@ export const Board = ({
 
   return (
     <View style={styles.board}>
-      {/* Preview phase: show the completed picture only (no grid, no borders) */}
       {isPreviewing ? (
         <>
           <View
@@ -55,44 +55,53 @@ export const Board = ({
               transition={120}
             />
           </View>
-
-          {/* Big countdown overlay */}
           {countdown > 0 && (
             <Text style={styles.previewCountdown}>{countdown}</Text>
           )}
         </>
       ) : (
         <>
-          {/* Grid (drawn during gameplay; board is otherwise blank) */}
           {[...Array(BOARD_HEIGHT * BOARD_WIDTH)].map((_, i) => (
             <View key={i} style={styles.cell} />
           ))}
 
-          {/* Grounded tiles with borders */}
           {groundedTiles.map((tile) => (
             <Tile
               key={tile.number}
               tilePos={gridToPixel(tile.row, tile.col)}
               number={tile.number}
               imageUri={PUZZLE_IMAGE_URI}
-              showNumbers={showNumbers}
               isGrounded
               groundedSet={groundedSet}
             />
           ))}
 
-          {/* Active tile */}
           {activeTile && (
             <Tile
               tilePos={gridToPixel(activeTile.row, activeTile.col)}
               number={activeTile.targetNumber}
               imageUri={PUZZLE_IMAGE_URI}
-              showNumbers={showNumbers}
               isActive
             />
           )}
 
-          {/* Overlays */}
+          {effects.map((fx) => {
+            const { top, left } = gridToPixel(fx.row, fx.col);
+            return (
+              <Flash
+                key={fx.id}
+                top={top}
+                left={left}
+                color={fx.color}
+                mode={fx.mode}
+                repeats={fx.repeats}
+                duration={fx.duration}
+                borderWidth={fx.borderWidth}
+                onDone={fx.onDone}
+              />
+            );
+          })}
+
           {isWon && (
             <Text style={[styles.overlayText, { color: "lime" }]}>
               PUZZLE COMPLETE
@@ -124,7 +133,7 @@ const styles = StyleSheet.create({
   },
   overlayText: {
     position: "absolute",
-    top: 2 * TILE_SIZE, // middle-ish for 5 rows
+    top: 3 * TILE_SIZE,
     left: 0,
     width: BOARD_WIDTH * TILE_SIZE,
     textAlign: "center",
@@ -137,15 +146,15 @@ const styles = StyleSheet.create({
   },
   previewCountdown: {
     position: "absolute",
-    top: (BOARD_HEIGHT * TILE_SIZE) / 2 - TILE_SIZE * 0.6,
+    top: 0,
     left: 0,
     width: BOARD_WIDTH * TILE_SIZE,
     textAlign: "center",
-    fontSize: TILE_SIZE * 1.4,
+    fontSize: TILE_SIZE,
     fontWeight: "900",
     color: "white",
-    textShadowColor: "rgba(0,0,0,0.75)",
+    textShadowColor: "rgba(0,0,0,0.8)",
     textShadowOffset: { width: 0, height: 2 },
-    textShadowRadius: 6,
+    textShadowRadius: 4,
   },
 });
