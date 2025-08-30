@@ -30,6 +30,8 @@ export const Board = ({
   countdown,
   effects = [],
   imageUri,
+  previewTheme,
+  previewTitle,
 }) => {
   const groundedSet = useMemo(
     () => new Set(groundedTiles.map((t) => t.number)),
@@ -69,6 +71,15 @@ export const Board = ({
           </View>
           {countdown > 0 && (
             <Text style={styles.previewCountdown}>{countdown}</Text>
+          )}
+          {(previewTheme || previewTitle) && (
+            <View style={styles.previewMeta}>
+              {!!previewTheme && !!previewTitle && (
+                <Text style={styles.previewText}>
+                  {previewTheme}: {previewTitle}
+                </Text>
+              )}
+            </View>
           )}
         </>
       ) : (
@@ -145,7 +156,8 @@ const styles = StyleSheet.create({
   },
   overlayText: {
     position: "absolute",
-    top: 3 * TILE_SIZE,
+    // top: 3 * TILE_SIZE,
+    top: 0,
     left: 0,
     width: BOARD_WIDTH * TILE_SIZE,
     textAlign: "center",
@@ -165,6 +177,22 @@ const styles = StyleSheet.create({
     fontSize: TILE_SIZE,
     fontWeight: "900",
     color: "white",
+    textShadowColor: "rgba(0,0,0,0.8)",
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 4,
+  },
+  previewMeta: {
+    position: "absolute",
+    top: TILE_SIZE * 1.2, // a bit below the big countdown
+    left: 0,
+    width: BOARD_WIDTH * TILE_SIZE,
+    paddingHorizontal: 8,
+    alignItems: "center",
+  },
+  previewText: {
+    fontSize: Math.round(TILE_SIZE * 0.28),
+    fontWeight: "500",
+    color: "black",
     textShadowColor: "rgba(0,0,0,0.8)",
     textShadowOffset: { width: 0, height: 2 },
     textShadowRadius: 4,

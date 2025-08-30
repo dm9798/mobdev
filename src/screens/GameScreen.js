@@ -22,6 +22,11 @@ export default function GameScreen() {
 
   const { moveLeft, moveRight, moveDown, newGame } = actions;
 
+  const previewTheme =
+    state.currentLevel?.title ?? state.currentLevel?.name ?? "";
+  const previewTitle =
+    state.currentPuzzle?.title ?? state.currentPuzzle?.name ?? "";
+
   return (
     <View style={styles.container}>
       <View style={styles.scoreWrapper}>
@@ -37,6 +42,8 @@ export default function GameScreen() {
         effects={effects}
         imageUri={currentPuzzleImage}
         score={score}
+        previewTheme={previewTheme}
+        previewTitle={previewTitle}
       />
 
       <Controls
