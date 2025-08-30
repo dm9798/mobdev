@@ -1,5 +1,6 @@
 // src/hooks/useGameState.js
 import { useState, useEffect, useRef } from "react";
+import * as Haptics from "expo-haptics";
 import {
   BOARD_WIDTH,
   BOARD_HEIGHT,
@@ -148,7 +149,11 @@ export const useGameState = () => {
 
         setScore((s) => s + 100); // correctly grounded tile score
 
+        // correct placement (sameCol === true)
         fireEffect("correct", { row: targetRow, col: targetCol });
+        Haptics.notificationAsync(
+          Haptics.NotificationFeedbackType.Success
+        ).catch(() => {});
 
         // win?
         const placed = new Set(newTiles.map((t) => t.number));
@@ -187,6 +192,9 @@ export const useGameState = () => {
       setScore((s) => s - 100);
       setMadeMistake(true);
       fireEffect("wrong", { row: currentRow, col: currentCol });
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(
+        () => {}
+      );
 
       setTimeout(() => {
         setGroundedTiles((prev) => {
@@ -199,6 +207,9 @@ export const useGameState = () => {
           ];
 
           fireEffect("settle", { row: targetRow, col: targetCol });
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(
+            () => {}
+          );
 
           const placed = new Set(newTiles.map((t) => t.number));
           const allPlaced = VALID_POSITIONS.every((n) => placed.has(n));

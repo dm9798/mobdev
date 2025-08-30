@@ -56,4 +56,60 @@ export const LEVELS = [
       },
     ],
   },
+  {
+    key: "artworks",
+    title: "Artworks",
+    puzzles: [
+      {
+        key: "Adam",
+        title: "Adam and God",
+        image: require("../../assets/images/artworks/01_sistinechapel.jpg"),
+      },
+      {
+        key: "Marilyn",
+        title: "Marilyn Monroe 31",
+        image: require("../../assets/images/artworks/02_andywarhol.jpg"),
+      },
+      {
+        key: "Pearl",
+        title: "Girl with a Pearl Earring",
+        image: require("../../assets/images/artworks/03_pearlearring.jpg"),
+      },
+      {
+        key: "Mona",
+        title: "Mona Lisa",
+        image: require("../../assets/images/artworks/04_monalisa.jpg"),
+      },
+      {
+        key: "Strolling",
+        title: "Strolling Along Sea shore",
+        image: require("../../assets/images/artworks/05_strollingalongseashore.jpg"),
+      },
+      {
+        key: "Weeping",
+        title: "Weeping Woman",
+        image: require("../../assets/images/artworks/06_weepingwoman.jpg"),
+      },
+      {
+        key: "Starry Night",
+        title: "Starry Night",
+        image: require("../../assets/images/artworks/07_starrynight.jpg"),
+      },
+      {
+        key: "Rhone",
+        title: "Starry Night Over The Rhone",
+        image: require("../../assets/images/artworks/08_starrynight2.jpg"),
+      },
+      {
+        key: "School",
+        title: "School of Athens",
+        image: require("../../assets/images/artworks/09_schoolofathens.jpg"),
+      },
+      {
+        key: "Gothic",
+        title: "American Gothic",
+        image: require("../../assets/images/artworks/10_americangothic.jpg"),
+      },
+    ],
+  },
 ];

@@ -44,12 +44,12 @@ export const EFFECT_DEFAULTS = {
 // Optional: per-mode tweaks (merged on top of EFFECT_DEFAULTS)
 export const EFFECT_MODES = {
   correct: { repeats: 2, duration: 180 },
-  wrong: { repeats: 1, duration: 220 },
-  settle: { repeats: 3, duration: 140 },
+  wrong: { repeats: 1, duration: 150 },
+  settle: { repeats: 3, duration: 150 },
 };
 
 // how long to show "PUZZLE COMPLETE" before starting next preview
-export const INTER_PUZZLE_DELAY_MS = 3000; // tweak to taste (e.g., 1500–2500)
+export const INTER_PUZZLE_DELAY_MS = 2500;
 
 /** Gameplay seeds **/
 export const INITIAL_GROUNDED_COUNT = 2; // <- was 3
