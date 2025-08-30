@@ -12,14 +12,11 @@ import {
 import { LEVELS } from "../constants/levels";
 
 import { rowOf, colOf } from "../utils/positions";
-import { randomTopCol, choice } from "../utils/random";
-
-import {
-  getSpawnableTargetsTwoTier,
-  filterByLookahead,
-  clearSpawnMemo,
-} from "./useSpawner";
+import { randomTopCol } from "../utils/random";
 import { violatesUnwantedCombination } from "./useRules";
+import { planOrder } from "./usePlanner";
+
+// --------------------------------------
 
 export const useGameState = () => {
   const [groundedTiles, setGroundedTiles] = useState([]);
@@ -41,13 +38,12 @@ export const useGameState = () => {
   // timers/refs
   const intervalRef = useRef(null);
   const lockTimeoutRef = useRef(null);
-  const lastLockedRef = useRef(null);
   const previewIntervalRef = useRef(null);
   const previewTimeoutRef = useRef(null);
 
-  // “first spawn after preview” marker and seed capture for debug/consistency
-  const firstSpawnRef = useRef(false);
-  const seedTilesRef = useRef(null);
+  // deterministic plan for current run (excludes initial two)
+  const planRef = useRef([]); // e.g., [9,12,13, ...]
+  const planPosRef = useRef(0); // index into planRef.current
 
   // derived
   const tilesLeft = VALID_POSITIONS.length - groundedTiles.length;
@@ -74,7 +70,6 @@ export const useGameState = () => {
     setEffects((prev) => [...prev, merged]);
     return id;
   };
-
   const fireEffect = (type, props) => pushEffect({ type, ...props });
 
   // ---------- board helpers ----------
@@ -83,95 +78,6 @@ export const useGameState = () => {
 
   const canMoveDown = (row, col) =>
     row + 1 < BOARD_HEIGHT && !isCellOccupied(row + 1, col);
-
-  // ---------- spawn helpers ----------
-  const baseSpawnable = (tiles) => {
-    const taken = new Set(tiles.map((t) => t.number));
-    return getSpawnableTargetsTwoTier(tiles).filter((n) => !taken.has(n));
-  };
-
-  const listValidSeedPairs = () => {
-    const valid = [];
-    for (let i = 0; i < VALID_POSITIONS.length; i++) {
-      for (let j = i + 1; j < VALID_POSITIONS.length; j++) {
-        const a = VALID_POSITIONS[i];
-        const b = VALID_POSITIONS[j];
-        if (violatesUnwantedCombination([], a)) continue;
-        if (violatesUnwantedCombination([{ number: a }], b)) continue;
-
-        const tiles = [
-          { number: a, row: rowOf(a), col: colOf(a) },
-          { number: b, row: rowOf(b), col: colOf(b) },
-        ];
-
-        if (baseSpawnable(tiles).length > 0) valid.push([a, b]);
-      }
-    }
-    return valid;
-  };
-
-  const chooseSpawn = (tiles) => {
-    // For the very first spawn *after preview*, use the exact seed tiles
-    const baselineTiles = firstSpawnRef.current
-      ? seedTilesRef.current || tiles
-      : tiles;
-
-    const taken = new Set(baselineTiles.map((t) => t.number));
-    const base = getSpawnableTargetsTwoTier(baselineTiles).filter(
-      (n) => !taken.has(n)
-    );
-
-    if (firstSpawnRef.current) {
-      // No lookahead / no lastLocked filtering on the very first spawn
-      return base;
-    }
-
-    const viable = filterByLookahead(baselineTiles, base);
-    const pool = viable.length ? viable : base;
-
-    let finalPool = pool;
-    if (finalPool.length > 1) {
-      finalPool = finalPool.filter((n) => n !== lastLockedRef.current);
-      if (!finalPool.length) finalPool = pool;
-    }
-    return finalPool;
-  };
-
-  const rerollsRef = useRef(0);
-
-  const spawnTile = () => {
-    if (isGameOver || isWon || isPreviewing) return;
-
-    const pool = chooseSpawn(groundedTiles);
-    if (!pool.length) {
-      if (firstSpawnRef.current) {
-        // If this ever happens, it’s the race we just fixed; keep a guard anyway.
-        rerollsRef.current += 1;
-        console.warn(
-          "[Spawn] Empty pool right after preview — rerolling seed.",
-          {
-            rerolls: rerollsRef.current,
-            seed: seedTilesRef.current
-              ?.map((t) => t.number)
-              .sort((a, b) => a - b),
-          }
-        );
-        firstSpawnRef.current = false; // reset and reseed
-        seedInitial();
-        return;
-      }
-      console.warn("[Spawn] Empty pool mid-run → Game over.", {
-        grounded: groundedTiles.map((t) => t.number).sort((a, b) => a - b),
-      });
-      setActiveTile(null);
-      setIsGameOver(true);
-      return;
-    }
-
-    firstSpawnRef.current = false; // first spawn succeeded
-    const targetNumber = choice(pool);
-    setActiveTile({ row: 0, col: randomTopCol(), targetNumber });
-  };
 
   // ---------- progression ----------
   const advancePuzzle = () => {
@@ -186,9 +92,26 @@ export const useGameState = () => {
     });
   };
 
+  // ---------- spawns driven by plan ----------
+  const spawnNextFromPlan = () => {
+    if (isGameOver || isWon || isPreviewing) return;
+    const plan = planRef.current;
+    const k = planPosRef.current;
+
+    // if we've placed all from the plan, we should be done (win check elsewhere)
+    if (k >= plan.length) {
+      setActiveTile(null);
+      return;
+    }
+
+    const targetNumber = plan[k];
+    setActiveTile({ row: 0, col: randomTopCol(), targetNumber });
+  };
+
   // ---------- lock & teleport ----------
   const lockAndTeleport = () => {
     if (!activeTile || isGameOver || isWon || isPreviewing) return;
+
     const targetRow = rowOf(activeTile.targetNumber);
     const targetCol = colOf(activeTile.targetNumber);
     const currentRow = activeTile.row;
@@ -203,7 +126,6 @@ export const useGameState = () => {
           ...prev,
           { row: targetRow, col: targetCol, number: activeTile.targetNumber },
         ];
-        lastLockedRef.current = activeTile.targetNumber;
 
         fireEffect("correct", { row: targetRow, col: targetCol });
 
@@ -221,19 +143,9 @@ export const useGameState = () => {
           return newTiles;
         }
 
-        const pool = chooseSpawn(newTiles);
-        if (!pool.length) {
-          setActiveTile(null);
-          setIsWon(false);
-          setIsGameOver(true);
-        } else {
-          const nextTarget = pool[Math.floor(Math.random() * pool.length)];
-          setActiveTile({
-            row: 0,
-            col: randomTopCol(),
-            targetNumber: nextTarget,
-          });
-        }
+        // advance the plan index and spawn the next
+        planPosRef.current += 1;
+        spawnNextFromPlan();
         return newTiles;
       });
     } else {
@@ -247,17 +159,11 @@ export const useGameState = () => {
 
           const newTiles = [
             ...prev,
-            {
-              row: targetRow,
-              col: targetCol,
-              number: activeTile.targetNumber,
-            },
+            { row: targetRow, col: targetCol, number: activeTile.targetNumber },
           ];
-          lastLockedRef.current = activeTile.targetNumber;
 
           fireEffect("settle", { row: targetRow, col: targetCol });
 
-          // win?
           const placed = new Set(newTiles.map((t) => t.number));
           const allPlaced = VALID_POSITIONS.every((n) => placed.has(n));
           if (allPlaced) {
@@ -271,19 +177,8 @@ export const useGameState = () => {
             return newTiles;
           }
 
-          const pool = chooseSpawn(newTiles);
-          if (!pool.length) {
-            setActiveTile(null);
-            setIsWon(false);
-            setIsGameOver(true);
-          } else {
-            const nextTarget = pool[Math.floor(Math.random() * pool.length)];
-            setActiveTile({
-              row: 0,
-              col: randomTopCol(),
-              targetNumber: nextTarget,
-            });
-          }
+          planPosRef.current += 1;
+          spawnNextFromPlan();
           return newTiles;
         });
       }, 220);
@@ -309,7 +204,7 @@ export const useGameState = () => {
 
   // ---------- preview & seed ----------
   const startPreviewCountdown = () => {
-    // countdown assumes isPreviewing is already true (we set it in seedInitial)
+    setIsPreviewing(true);
     setCountdown(3);
 
     previewIntervalRef.current = setInterval(() => {
@@ -321,74 +216,81 @@ export const useGameState = () => {
     }, 1000);
 
     previewTimeoutRef.current = setTimeout(() => {
+      setIsPreviewing(false);
       setCountdown(0);
-      setIsPreviewing(false); // ← end preview
-      firstSpawnRef.current = true; // mark first-spawn window
-      spawnTile();
+      // first spawn follows the plan
+      spawnNextFromPlan();
     }, 3100);
   };
 
   const seedInitial = () => {
-    rerollsRef.current = 0;
-
-    // clear timers & memos
+    // clear timers
     clearInterval(previewIntervalRef.current);
     clearTimeout(previewTimeoutRef.current);
-    clearSpawnMemo();
-    lastLockedRef.current = null;
 
+    // clear state
     setActiveTile(null);
     setIsGameOver(false);
     setIsWon(false);
     setEffects([]);
+    planRef.current = [];
+    planPosRef.current = 0;
 
-    // IMPORTANT: prevent any auto-spawn window by enabling preview FIRST
-    setIsPreviewing(true);
-    firstSpawnRef.current = false; // preview end will flip to true
+    // choose 2 valid seeds and compute a plan
+    let tries = 0;
+    const MAX_TRIES = 400;
 
-    // deterministically compute all valid seed pairs
-    const candidates = listValidSeedPairs();
-
-    if (candidates.length === 0) {
-      console.warn(
-        "[Seed] No valid seed pairs found — using best-effort fallback."
-      );
+    while (tries < MAX_TRIES) {
+      // pick 2 non-violating seeds
       const pool = [...VALID_POSITIONS];
       const chosen = [];
       while (chosen.length < INITIAL_GROUNDED_COUNT && pool.length) {
-        const idx = Math.floor(Math.random() * pool.length);
-        const pick = pool.splice(idx, 1)[0];
+        const ix = Math.floor(Math.random() * pool.length);
+        const pick = pool.splice(ix, 1)[0];
         const temp = chosen.map((n) => ({ number: n }));
         if (!violatesUnwantedCombination(temp, pick)) chosen.push(pick);
       }
-      while (chosen.length < INITIAL_GROUNDED_COUNT && pool.length) {
-        chosen.push(pool.pop());
+
+      if (chosen.length < INITIAL_GROUNDED_COUNT) {
+        tries++;
+        continue;
       }
+
       const initialTiles = chosen.map((num) => ({
         row: rowOf(num),
         col: colOf(num),
         number: num,
       }));
-      seedTilesRef.current = initialTiles;
-      setGroundedTiles(initialTiles);
-      startPreviewCountdown();
-      return;
+
+      // compute a full plan; if none, try another seed
+      const plan = planOrder(initialTiles);
+      if (
+        plan &&
+        plan.length === VALID_POSITIONS.length - INITIAL_GROUNDED_COUNT
+      ) {
+        setGroundedTiles(initialTiles);
+        planRef.current = plan;
+        planPosRef.current = 0;
+        startPreviewCountdown();
+        return;
+      }
+
+      tries++;
     }
 
-    // Choose a random valid pair
-    const [a, b] = candidates[Math.floor(Math.random() * candidates.length)];
-    const initialTiles = [
+    // fallback (should be very rare if rules are reasonable)
+    console.warn("[Planner] Could not find a solvable seed after many tries.");
+    // Just set any two seeds (no plan), mark game over to avoid loop.
+    const a = VALID_POSITIONS[0],
+      b = VALID_POSITIONS[1];
+    setGroundedTiles([
       { number: a, row: rowOf(a), col: colOf(a) },
       { number: b, row: rowOf(b), col: colOf(b) },
-    ];
-    seedTilesRef.current = initialTiles;
-    setGroundedTiles(initialTiles);
-
-    // show full completed image for 3s, then begin play
-    startPreviewCountdown();
+    ]);
+    setIsGameOver(true);
   };
 
-  // re-seed when levelIndex/puzzleIndex changes
+  // seed when level/puzzle changes
   useEffect(() => {
     seedInitial();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -404,19 +306,7 @@ export const useGameState = () => {
     };
   }, []);
 
-  // spawn when ready (still guarded by isPreviewing)
-  useEffect(() => {
-    if (
-      groundedTiles.length > 0 &&
-      !activeTile &&
-      !isGameOver &&
-      !isWon &&
-      !isPreviewing
-    ) {
-      spawnTile();
-    }
-  }, [groundedTiles, isGameOver, isWon, isPreviewing]);
-
+  // Controls
   const newGame = () => {
     setLevelIndex(0);
     setPuzzleIndex(0);
@@ -468,7 +358,7 @@ export const useGameState = () => {
           return { ...p, row: p.row + 1 };
         }),
       newGame,
-      nextPuzzle: advancePuzzle,
+      nextPuzzle: advancePuzzle, // optional debug
       setLevelIndex,
       setPuzzleIndex,
     },
