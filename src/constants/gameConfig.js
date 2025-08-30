@@ -29,10 +29,10 @@ export const VALID_POSITIONS = Array.from(
 
 // --- Effect styling (centralized) ---
 export const EFFECT_COLORS = {
-  correct: "#FF00FF", // magenta
+  correct: "#008000", // green
   wrong: "#FF1744", // red
   settle: "#FFC107", // amber
-  default: "#FF00FF",
+  default: "#008000",
 };
 
 export const EFFECT_DEFAULTS = {

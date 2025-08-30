@@ -156,8 +156,7 @@ const styles = StyleSheet.create({
   },
   overlayText: {
     position: "absolute",
-    // top: 3 * TILE_SIZE,
-    top: 0,
+    top: 0 + TILE_SIZE / 2,
     left: 0,
     width: BOARD_WIDTH * TILE_SIZE,
     textAlign: "center",

@@ -9,6 +9,7 @@ import {
   EFFECT_DEFAULTS,
   EFFECT_MODES,
 } from "../constants/gameConfig";
+
 import { LEVELS } from "../constants/levels";
 
 import { rowOf, colOf } from "../utils/positions";

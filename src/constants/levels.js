@@ -25,6 +25,11 @@ export const LEVELS = [
         image: require("../../assets/images/animals/04_grizzly.jpg"),
       },
       {
+        key: "silverback",
+        title: "Silverback",
+        image: require("../../assets/images/animals/05_silverback.jpg"),
+      },
+      {
         key: "turtle",
         title: "Turtle",
         image: require("../../assets/images/animals/06_turtle.jpg"),
@@ -39,52 +44,16 @@ export const LEVELS = [
         title: "Elephant",
         image: require("../../assets/images/animals/08_elephant.jpg"),
       },
-      // {
-      //   key: "chimp",
-      //   title: "Chimp",
-      //   image: require("../../assets/images/animals/09_chimp.jpg)"),
-      // },
       {
         key: "horse",
         title: "Horse",
-        image: require("../../assets/images/animals/10_horse.jpg"),
+        image: require("../../assets/images/animals/09_horse.jpg"),
+      },
+      {
+        key: "crocodile",
+        title: "Crocodile",
+        image: require("../../assets/images/animals/10_crocodile.jpg"),
       },
     ],
   },
-  // {
-  //   key: "movies",
-  //   title: "Movie Scenes",
-  //   puzzles: [
-  //     {
-  //       key: "scene_01",
-  //       title: "Scene 1",
-  //       image: require("../../assets/images/movies/01_scene.jpg"),
-  //     },
-  //     // ...10 total
-  //   ],
-  // },
-  // {
-  //   key: "landmarks",
-  //   title: "Landmarks",
-  //   puzzles: [
-  //     {
-  //       key: "eiffel",
-  //       title: "Eiffel",
-  //       image: require("../../assets/images/landmarks/01_eiffel.jpg"),
-  //     },
-  //     // ...10 total
-  //   ],
-  // },
-  // {
-  //   key: "artworks",
-  //   title: "Artworks",
-  //   puzzles: [
-  //     {
-  //       key: "mona_lisa",
-  //       title: "Mona Lisa",
-  //       image: require("../../assets/images/artworks/01_mona.jpg"),
-  //     },
-  //     // ...10 total
-  //   ],
-  // },
 ];
