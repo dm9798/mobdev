@@ -35,6 +35,10 @@ export const useGameState = () => {
   const [levelIndex, setLevelIndex] = useState(0);
   const [puzzleIndex, setPuzzleIndex] = useState(0);
 
+  //scoring system
+  const [score, setScore] = useState(0); // running total across puzzles
+  const [madeMistake, setMadeMistake] = useState(false); // per-puzzle flag
+
   // timers/refs
   const intervalRef = useRef(null);
   const lockTimeoutRef = useRef(null);
@@ -95,6 +99,19 @@ export const useGameState = () => {
   // ---------- spawns driven by plan ----------
   const spawnNextFromPlan = () => {
     if (isGameOver || isWon || isPreviewing) return;
+    //dev-only check
+    if (__DEV__) {
+      const target = planRef.current[planPosRef.current];
+      if (!VALID_POSITIONS.includes(target)) {
+        console.warn("[DEV] Plan produced illegal target:", target);
+      }
+      if (groundedTiles.some((t) => t.number === target)) {
+        console.warn(
+          "[DEV] Plan produced duplicate target already grounded:",
+          target
+        );
+      }
+    }
     const plan = planRef.current;
     const k = planPosRef.current;
 
@@ -127,12 +144,17 @@ export const useGameState = () => {
           { row: targetRow, col: targetCol, number: activeTile.targetNumber },
         ];
 
+        setScore((s) => s + 100); // correctly grounded tile score
+
         fireEffect("correct", { row: targetRow, col: targetCol });
 
         // win?
         const placed = new Set(newTiles.map((t) => t.number));
         const allPlaced = VALID_POSITIONS.every((n) => placed.has(n));
         if (allPlaced) {
+          if (!madeMistake) {
+            setScore((s) => s + 300); //bonus points correctly completed puzzle
+          }
           setActiveTile(null);
           setIsGameOver(false);
           setIsWon(true);
@@ -142,6 +164,16 @@ export const useGameState = () => {
           }, 900);
           return newTiles;
         }
+        //dev-only checks
+        if (__DEV__) {
+          const nums = new Set(newTiles.map((t) => t.number));
+          if (nums.size !== newTiles.length) {
+            console.warn(
+              "[DEV] Duplicate grounded tile detected!",
+              newTiles.map((t) => t.number)
+            );
+          }
+        }
 
         // advance the plan index and spawn the next
         planPosRef.current += 1;
@@ -150,6 +182,8 @@ export const useGameState = () => {
       });
     } else {
       // wrong + settle
+      setScore((s) => s - 100);
+      setMadeMistake(true);
       fireEffect("wrong", { row: currentRow, col: currentCol });
 
       setTimeout(() => {
@@ -175,6 +209,16 @@ export const useGameState = () => {
               advancePuzzle();
             }, 900);
             return newTiles;
+          }
+          // dev-only checks
+          if (__DEV__) {
+            const nums = new Set(newTiles.map((t) => t.number));
+            if (nums.size !== newTiles.length) {
+              console.warn(
+                "[DEV] Duplicate grounded tile detected!",
+                newTiles.map((t) => t.number)
+              );
+            }
           }
 
           planPosRef.current += 1;
@@ -205,7 +249,7 @@ export const useGameState = () => {
   // ---------- preview & seed ----------
   const startPreviewCountdown = () => {
     setIsPreviewing(true);
-    setCountdown(3);
+    setCountdown(5);
 
     previewIntervalRef.current = setInterval(() => {
       setCountdown((n) => {
@@ -220,7 +264,7 @@ export const useGameState = () => {
       setCountdown(0);
       // first spawn follows the plan
       spawnNextFromPlan();
-    }, 3100);
+    }, 5100);
   };
 
   const seedInitial = () => {
@@ -235,6 +279,7 @@ export const useGameState = () => {
     setEffects([]);
     planRef.current = [];
     planPosRef.current = 0;
+    setMadeMistake(false);
 
     // choose 2 valid seeds and compute a plan
     let tries = 0;
@@ -310,6 +355,7 @@ export const useGameState = () => {
   const newGame = () => {
     setLevelIndex(0);
     setPuzzleIndex(0);
+    setScore(0);
   };
 
   return {
@@ -327,6 +373,7 @@ export const useGameState = () => {
       currentLevel,
       currentPuzzle,
       currentPuzzleImage,
+      score,
     },
     actions: {
       moveLeft: () =>

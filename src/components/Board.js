@@ -132,7 +132,7 @@ const styles = StyleSheet.create({
   board: {
     width: BOARD_WIDTH * TILE_SIZE,
     height: BOARD_HEIGHT * TILE_SIZE,
-    backgroundColor: "white",
+    backgroundColor: "#D3D3D3",
     flexDirection: "row",
     flexWrap: "wrap",
     position: "relative",

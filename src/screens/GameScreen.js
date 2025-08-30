@@ -1,6 +1,6 @@
 // src/screens/GameScreen.js
 import React from "react";
-import { View, StyleSheet } from "react-native";
+import { View, StyleSheet, Text } from "react-native";
 import { Board } from "../components/Board";
 import { Controls } from "../components/Controls";
 import { useGameState } from "../hooks/useGameState";
@@ -17,12 +17,16 @@ export default function GameScreen() {
     countdown,
     effects,
     currentPuzzleImage,
+    score,
   } = state;
 
   const { moveLeft, moveRight, moveDown, newGame } = actions;
 
   return (
     <View style={styles.container}>
+      <View style={styles.scoreWrapper}>
+        <Text style={styles.scoreText}>Score: {state.score}</Text>
+      </View>
       <Board
         groundedTiles={groundedTiles}
         activeTile={activeTile}
@@ -32,6 +36,7 @@ export default function GameScreen() {
         countdown={countdown}
         effects={effects}
         imageUri={currentPuzzleImage}
+        score={score}
       />
 
       <Controls
@@ -53,5 +58,16 @@ const styles = StyleSheet.create({
     backgroundColor: "gray",
     alignItems: "center",
     justifyContent: "center",
+  },
+  scoreWrapper: {
+    width: "100%",
+    alignItems: "flex-end",
+    marginBottom: 6, // space before board
+    paddingRight: 10,
+  },
+  scoreText: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "#222",
   },
 });
