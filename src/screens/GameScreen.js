@@ -1,9 +1,10 @@
 // src/screens/GameScreen.js
 import React from "react";
 import { View, StyleSheet, Text } from "react-native";
+import { useGameState } from "../hooks/useGameState";
 import { Board } from "../components/Board";
 import { Controls } from "../components/Controls";
-import { useGameState } from "../hooks/useGameState";
+import GameCompleteModal from "../components/GameCompleteModal";
 
 export default function GameScreen({ route }) {
   const levelKey = route?.params?.levelKey ?? null;
@@ -19,7 +20,9 @@ export default function GameScreen({ route }) {
     countdown,
     effects,
     currentPuzzleImage,
+    currentLevel,
     score,
+    isSeriesComplete,
   } = state;
 
   const { moveLeft, moveRight, moveDown, newGame } = actions;
@@ -56,6 +59,18 @@ export default function GameScreen({ route }) {
         moveRight={moveRight}
         moveDown={moveDown}
         newGame={newGame}
+      />
+
+      <GameCompleteModal
+        visible={isSeriesComplete}
+        score={score}
+        categoryTitle={currentLevel?.title ?? ""}
+        onPlayAgain={() => {
+          resetCategory(); // back to puzzle 0 in same category
+        }}
+        onMainMenu={() => {
+          navigation.popToTop(); // back to main menu
+        }}
       />
     </View>
   );

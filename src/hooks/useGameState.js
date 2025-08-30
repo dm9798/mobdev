@@ -49,6 +49,9 @@ export const useGameState = ({ levelKey = null }) => {
   );
   const [puzzleIndex, setPuzzleIndex] = useState(0);
 
+  //Final-run flag
+  const [isSeriesComplete, setIsSeriesComplete] = useState(false);
+
   //scoring system
   const [score, setScore] = useState(0); // running total across puzzles
   const [madeMistake, setMadeMistake] = useState(false); // per-puzzle flag
@@ -105,17 +108,9 @@ export const useGameState = ({ levelKey = null }) => {
       const nextPi = pi + 1;
       if (nextPi < currentLevel.puzzles.length) return nextPi;
 
-      if (lockedLevelIndex !== null) {
-        // Stay in the same category and loop puzzles
-        return 0;
-      }
-
-      // Fallback to previous cross-category behavior if no lock (e.g., old flows)
-      setLevelIndex((li) => {
-        const nextLi = li + 1;
-        return nextLi < LEVELS.length ? nextLi : 0;
-      });
-      return 0;
+      // hit the end of this category -> mark complete and DO NOT loop
+      setIsSeriesComplete(true);
+      return pi; // keep index on last puzzle (or set to 0 if you prefer)
     });
   };
 
@@ -370,9 +365,11 @@ export const useGameState = ({ levelKey = null }) => {
 
   // seed when level/puzzle changes
   useEffect(() => {
-    seedInitial();
+    if (!isSeriesComplete) {
+      seedInitial();
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [levelIndex, puzzleIndex]);
+  }, [levelIndex, puzzleIndex, isSeriesComplete]);
 
   // If the selected category changes (user came from LevelSelect with a different key),
   // re-target to that level and reset puzzleIndex to 0.
@@ -380,6 +377,8 @@ export const useGameState = ({ levelKey = null }) => {
     if (lockedLevelIndex !== null) {
       setLevelIndex(lockedLevelIndex);
       setPuzzleIndex(0);
+      setIsSeriesComplete(false);
+      setScore(0);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [levelKey]);
@@ -401,6 +400,13 @@ export const useGameState = ({ levelKey = null }) => {
     setScore(0);
   };
 
+  //helpers for modal
+  const resetCategory = () => {
+    setPuzzleIndex(0);
+    setIsSeriesComplete(false);
+    setScore(0);
+  };
+
   return {
     state: {
       groundedTiles,
@@ -416,6 +422,7 @@ export const useGameState = ({ levelKey = null }) => {
       currentLevel,
       currentPuzzle,
       currentPuzzleImage,
+      isSeriesComplete,
       score,
     },
     actions: {
@@ -449,6 +456,7 @@ export const useGameState = ({ levelKey = null }) => {
         }),
       newGame,
       nextPuzzle: advancePuzzle, // optional debug
+      resetCategory,
       setLevelIndex,
       setPuzzleIndex,
     },
