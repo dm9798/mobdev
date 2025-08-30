@@ -29,10 +29,10 @@ export const VALID_POSITIONS = Array.from(
 
 // --- Effect styling (centralized) ---
 export const EFFECT_COLORS = {
-  correct: "#008000", // green
+  correct: "#008000", // dark green
   wrong: "#FF1744", // red
-  settle: "#FFC107", // amber
-  default: "#008000",
+  settle: "yellow", // yellow
+  default: "#008000", //dark green
 };
 
 export const EFFECT_DEFAULTS = {
@@ -47,6 +47,9 @@ export const EFFECT_MODES = {
   wrong: { repeats: 1, duration: 220 },
   settle: { repeats: 3, duration: 140 },
 };
+
+// how long to show "PUZZLE COMPLETE" before starting next preview
+export const INTER_PUZZLE_DELAY_MS = 3000; // tweak to taste (e.g., 1500–2500)
 
 /** Gameplay seeds **/
 export const INITIAL_GROUNDED_COUNT = 2; // <- was 3

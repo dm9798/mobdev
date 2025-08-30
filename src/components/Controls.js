@@ -6,7 +6,6 @@ export const Controls = ({
   isPreviewing,
   isGameOver,
   isWon,
-
   moveLeft,
   moveRight,
   moveDown,

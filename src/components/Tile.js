@@ -2,14 +2,6 @@
 import React from "react";
 import { View, StyleSheet } from "react-native";
 import { Image } from "expo-image";
-// import {
-//   TILE_SIZE,
-//   IMAGE_SIZE,
-//   BOARD_WIDTH,
-//   BOARD_HEIGHT,
-//   PUZZLE_START_ROW, // <-- use these
-//   PUZZLE_SIZE, // <-- (should be 3 for 3×3)
-// } from "../constants/gameConfig";
 
 import {
   TILE_SIZE,

@@ -8,6 +8,7 @@ import {
   EFFECT_COLORS,
   EFFECT_DEFAULTS,
   EFFECT_MODES,
+  INTER_PUZZLE_DELAY_MS,
 } from "../constants/gameConfig";
 
 import { LEVELS } from "../constants/levels";
@@ -162,7 +163,7 @@ export const useGameState = () => {
           setTimeout(() => {
             setIsWon(false);
             advancePuzzle();
-          }, 900);
+          }, INTER_PUZZLE_DELAY_MS);
           return newTiles;
         }
         //dev-only checks
