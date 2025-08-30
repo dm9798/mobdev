@@ -55,3 +55,8 @@ export const INTER_PUZZLE_DELAY_MS = 2500;
 export const INITIAL_GROUNDED_COUNT = 2; // <- was 3
 
 export const UNWANTED_COMBINATIONS = RULES;
+
+//tile descent speed
+export const BEGINNER = 1200;
+export const MEDIUM = 900;
+export const EXPERT = 800;

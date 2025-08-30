@@ -21,7 +21,16 @@ import { planOrder } from "./usePlanner";
 
 // --------------------------------------
 
-export const useGameState = () => {
+export const useGameState = ({ levelKey = null }) => {
+  const lockedLevelIndex = levelKey
+    ? Math.max(
+        0,
+        LEVELS.findIndex((l) => l.key === levelKey)
+      )
+    : null;
+
+  // If locked, start at that level; otherwise keep your previous default (0)
+
   const [groundedTiles, setGroundedTiles] = useState([]);
   const [activeTile, setActiveTile] = useState(null);
   const [isGameOver, setIsGameOver] = useState(false);
@@ -35,7 +44,9 @@ export const useGameState = () => {
   const [effects, setEffects] = useState([]);
 
   // level progression
-  const [levelIndex, setLevelIndex] = useState(0);
+  const [levelIndex, setLevelIndex] = useState(
+    lockedLevelIndex !== null ? lockedLevelIndex : 0
+  );
   const [puzzleIndex, setPuzzleIndex] = useState(0);
 
   //scoring system
@@ -54,9 +65,11 @@ export const useGameState = () => {
 
   // derived
   const tilesLeft = VALID_POSITIONS.length - groundedTiles.length;
-  const currentLevel = LEVELS[levelIndex] || LEVELS[0];
+
+  const currentLevel =
+    LEVELS[levelIndex] ?? LEVELS[lockedLevelIndex ?? 0] ?? LEVELS[0];
   const currentPuzzle =
-    currentLevel.puzzles[puzzleIndex] || currentLevel.puzzles[0];
+    currentLevel.puzzles[puzzleIndex] ?? currentLevel.puzzles[0];
   const currentPuzzleImage = currentPuzzle.image;
 
   // ---------- effects helpers ----------
@@ -91,6 +104,13 @@ export const useGameState = () => {
     setPuzzleIndex((pi) => {
       const nextPi = pi + 1;
       if (nextPi < currentLevel.puzzles.length) return nextPi;
+
+      if (lockedLevelIndex !== null) {
+        // Stay in the same category and loop puzzles
+        return 0;
+      }
+
+      // Fallback to previous cross-category behavior if no lock (e.g., old flows)
       setLevelIndex((li) => {
         const nextLi = li + 1;
         return nextLi < LEVELS.length ? nextLi : 0;
@@ -353,6 +373,16 @@ export const useGameState = () => {
     seedInitial();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [levelIndex, puzzleIndex]);
+
+  // If the selected category changes (user came from LevelSelect with a different key),
+  // re-target to that level and reset puzzleIndex to 0.
+  useEffect(() => {
+    if (lockedLevelIndex !== null) {
+      setLevelIndex(lockedLevelIndex);
+      setPuzzleIndex(0);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [levelKey]);
 
   // cleanup on unmount
   useEffect(() => {

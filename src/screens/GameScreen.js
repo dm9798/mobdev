@@ -5,8 +5,10 @@ import { Board } from "../components/Board";
 import { Controls } from "../components/Controls";
 import { useGameState } from "../hooks/useGameState";
 
-export default function GameScreen() {
-  const { state, actions } = useGameState();
+export default function GameScreen({ route }) {
+  const levelKey = route?.params?.levelKey ?? null;
+
+  const { state, actions } = useGameState({ levelKey });
 
   const {
     groundedTiles,

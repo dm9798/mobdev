@@ -62,7 +62,7 @@ export const LEVELS = [
     puzzles: [
       {
         key: "Adam",
-        title: "Adam and God",
+        title: "Creation of Adam",
         image: require("../../assets/images/artworks/01_sistinechapel.jpg"),
       },
       {
@@ -109,6 +109,127 @@ export const LEVELS = [
         key: "Gothic",
         title: "American Gothic",
         image: require("../../assets/images/artworks/10_americangothic.jpg"),
+      },
+    ],
+  },
+  {
+    key: "landmarks",
+    title: "Landmarks",
+    puzzles: [
+      {
+        key: "arcdetriomphe",
+        title: "Arc de Triomphe, France",
+        image: require("../../assets/images/landmarks/01_arcdetriomphe.jpg"),
+      },
+      {
+        key: "tajmahal",
+        title: "Taj Mahal, India",
+        image: require("../../assets/images/landmarks/02_tajmahal.jpg"),
+      },
+      {
+        key: "Pyramids",
+        title: "Pyramids, Egypt",
+        image: require("../../assets/images/landmarks/03_pyramids.jpg"),
+      },
+      {
+        key: "greatwall",
+        title: "Great Wall of China",
+        image: require("../../assets/images/landmarks/04_greatwall.jpg"),
+      },
+      {
+        key: "Petra",
+        title: "Petra, Jordan",
+        image: require("../../assets/images/landmarks/05_petrajordan.jpg"),
+      },
+      {
+        key: "rushmore",
+        title: "Mount Rushmore, USA",
+        image: require("../../assets/images/landmarks/06_mountrushmore.jpg"),
+      },
+      {
+        key: "Sydney",
+        title: "Sydney Opera House",
+        image: require("../../assets/images/landmarks/07_sydneyoperahouse.jpg"),
+      },
+      {
+        key: "Liberty",
+        title: "Statue of Liberty, USA",
+        image: require("../../assets/images/landmarks/08_statueofliberty.jpg"),
+      },
+      {
+        key: "Tower",
+        title: "Tower Bridge, UK",
+        image: require("../../assets/images/landmarks/09_towerbridge.jpg"),
+      },
+      {
+        key: "Christ",
+        title: "Christ the Redeemer, Brazil",
+        image: require("../../assets/images/landmarks/10_christ.jpg"),
+      },
+    ],
+  },
+  {
+    key: "movies",
+    title: "Movies",
+    puzzles: [
+      {
+        key: "shining",
+        title: "The Shining",
+        image: require("../../assets/images/movies/02_theshining.jpg"),
+      },
+
+      {
+        key: "cop",
+        title: "Beverly Hills Cop",
+        image: require("../../assets/images/movies/03_beverlyhillscop.jpg"),
+      },
+
+      {
+        key: "dogs",
+        title: "Reservoir Dogs",
+        image: require("../../assets/images/movies/04_reservoirdogs.jpg"),
+      },
+
+      {
+        key: "Seven",
+        title: "Seven Year Itch",
+        image: require("../../assets/images/movies/07_sevenyearitch.jpg"),
+      },
+
+      {
+        key: "titanic",
+        title: "Titanic",
+        image: require("../../assets/images/movies/08_titanic.jpg"),
+      },
+
+      {
+        key: "psycho",
+        title: "Psycho",
+        image: require("../../assets/images/movies/09_psycho.jpg"),
+      },
+
+      {
+        key: "godfather",
+        title: "The Godfather",
+        image: require("../../assets/images/movies/10_godfather.jpg"),
+      },
+
+      {
+        key: "rain",
+        title: "Singing in the Rain",
+        image: require("../../assets/images/movies/11_singingintherain.jpg"),
+      },
+
+      {
+        key: "pulp",
+        title: "Pulp Fiction",
+        image: require("../../assets/images/movies/12_pulpfiction.jpg"),
+      },
+
+      {
+        key: "fight",
+        title: "Fight Club",
+        image: require("../../assets/images/movies/13_fightclub.jpg"),
       },
     ],
   },
