@@ -7,7 +7,10 @@
     "start": "expo start",
     "android": "expo start --android",
     "ios": "expo start --ios",
-    "web": "expo start --web"
+    "web": "expo start --web",
+    "lint": "eslint . --ext .js,.jsx",
+    "format": "prettier --write .",
+    "depcheck": "depcheck"
   },
   "dependencies": {
     "@expo/metro-runtime": "~5.0.4",
@@ -19,12 +22,15 @@
     "react": "19.0.0",
     "react-dom": "19.0.0",
     "react-native": "0.79.5",
-    "react-native-web": "^0.20.0",
+    "react-native-safe-area-context": "5.4.0",
     "react-native-screens": "~4.11.1",
-    "react-native-safe-area-context": "5.4.0"
+    "react-native-web": "^0.20.0"
   },
   "devDependencies": {
-    "@babel/core": "^7.20.0"
+    "@babel/core": "^7.20.0",
+    "depcheck": "^1.4.7",
+    "eslint": "^9.34.0",
+    "prettier": "^3.6.2"
   },
   "private": true
 }

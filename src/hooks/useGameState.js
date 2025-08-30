@@ -5,10 +5,15 @@ import {
   BOARD_HEIGHT,
   VALID_POSITIONS,
   INITIAL_GROUNDED_COUNT,
+  EFFECT_COLORS,
+  EFFECT_DEFAULTS,
+  EFFECT_MODES,
 } from "../constants/gameConfig";
+import { LEVELS } from "../constants/levels";
 
 import { rowOf, colOf } from "../utils/positions";
 import { randomTopCol, choice } from "../utils/random";
+
 import {
   getSpawnableTargetsTwoTier,
   filterByLookahead,
@@ -22,39 +27,57 @@ export const useGameState = () => {
   const [isGameOver, setIsGameOver] = useState(false);
   const [isWon, setIsWon] = useState(false);
 
-  // preview (full completed image for 3s)
+  // preview (full image for 3s)
   const [isPreviewing, setIsPreviewing] = useState(false);
   const [countdown, setCountdown] = useState(0);
 
-  // flash effects (yellow/red/orange borders)
+  // FX list
   const [effects, setEffects] = useState([]);
 
+  // level progression
+  const [levelIndex, setLevelIndex] = useState(0);
+  const [puzzleIndex, setPuzzleIndex] = useState(0);
+
+  // timers/refs
   const intervalRef = useRef(null);
   const lockTimeoutRef = useRef(null);
   const lastLockedRef = useRef(null);
   const previewIntervalRef = useRef(null);
   const previewTimeoutRef = useRef(null);
 
-  const tilesLeft = VALID_POSITIONS.length - groundedTiles.length;
+  // “first spawn after preview” marker and seed capture for debug/consistency
+  const firstSpawnRef = useRef(false);
+  const seedTilesRef = useRef(null);
 
-  // --- effect helpers ---
-  const pushEffect = (fx) => {
-    const id = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-    const payload = {
-      id,
-      color: "yellow",
-      mode: "pulse",
-      repeats: 3,
-      duration: 160,
-      borderWidth: 3,
-      ...fx,
-    };
-    setEffects((prev) => [...prev, payload]);
-    return id;
-  };
+  // derived
+  const tilesLeft = VALID_POSITIONS.length - groundedTiles.length;
+  const currentLevel = LEVELS[levelIndex] || LEVELS[0];
+  const currentPuzzle =
+    currentLevel.puzzles[puzzleIndex] || currentLevel.puzzles[0];
+  const currentPuzzleImage = currentPuzzle.image;
+
+  // ---------- effects helpers ----------
   const removeEffect = (id) =>
     setEffects((prev) => prev.filter((e) => e.id !== id));
 
+  const pushEffect = (fx = {}) => {
+    const id = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    const type = fx.type || "correct";
+    const merged = {
+      id,
+      color: EFFECT_COLORS[type] ?? EFFECT_COLORS.default,
+      ...EFFECT_DEFAULTS,
+      ...(EFFECT_MODES[type] || {}),
+      ...fx,
+    };
+    if (!merged.onDone) merged.onDone = () => removeEffect(id);
+    setEffects((prev) => [...prev, merged]);
+    return id;
+  };
+
+  const fireEffect = (type, props) => pushEffect({ type, ...props });
+
+  // ---------- board helpers ----------
   const isCellOccupied = (row, col) =>
     groundedTiles.some((t) => t.row === row && t.col === col);
 
@@ -62,12 +85,49 @@ export const useGameState = () => {
     row + 1 < BOARD_HEIGHT && !isCellOccupied(row + 1, col);
 
   // ---------- spawn helpers ----------
+  const baseSpawnable = (tiles) => {
+    const taken = new Set(tiles.map((t) => t.number));
+    return getSpawnableTargetsTwoTier(tiles).filter((n) => !taken.has(n));
+  };
+
+  const listValidSeedPairs = () => {
+    const valid = [];
+    for (let i = 0; i < VALID_POSITIONS.length; i++) {
+      for (let j = i + 1; j < VALID_POSITIONS.length; j++) {
+        const a = VALID_POSITIONS[i];
+        const b = VALID_POSITIONS[j];
+        if (violatesUnwantedCombination([], a)) continue;
+        if (violatesUnwantedCombination([{ number: a }], b)) continue;
+
+        const tiles = [
+          { number: a, row: rowOf(a), col: colOf(a) },
+          { number: b, row: rowOf(b), col: colOf(b) },
+        ];
+
+        if (baseSpawnable(tiles).length > 0) valid.push([a, b]);
+      }
+    }
+    return valid;
+  };
+
   const chooseSpawn = (tiles) => {
-    let spawnable = getSpawnableTargetsTwoTier(tiles).filter(
-      (n) => !tiles.some((t) => t.number === n)
+    // For the very first spawn *after preview*, use the exact seed tiles
+    const baselineTiles = firstSpawnRef.current
+      ? seedTilesRef.current || tiles
+      : tiles;
+
+    const taken = new Set(baselineTiles.map((t) => t.number));
+    const base = getSpawnableTargetsTwoTier(baselineTiles).filter(
+      (n) => !taken.has(n)
     );
-    const viable = filterByLookahead(tiles, spawnable);
-    const pool = viable.length ? viable : spawnable;
+
+    if (firstSpawnRef.current) {
+      // No lookahead / no lastLocked filtering on the very first spawn
+      return base;
+    }
+
+    const viable = filterByLookahead(baselineTiles, base);
+    const pool = viable.length ? viable : base;
 
     let finalPool = pool;
     if (finalPool.length > 1) {
@@ -77,18 +137,56 @@ export const useGameState = () => {
     return finalPool;
   };
 
+  const rerollsRef = useRef(0);
+
   const spawnTile = () => {
     if (isGameOver || isWon || isPreviewing) return;
+
     const pool = chooseSpawn(groundedTiles);
     if (!pool.length) {
+      if (firstSpawnRef.current) {
+        // If this ever happens, it’s the race we just fixed; keep a guard anyway.
+        rerollsRef.current += 1;
+        console.warn(
+          "[Spawn] Empty pool right after preview — rerolling seed.",
+          {
+            rerolls: rerollsRef.current,
+            seed: seedTilesRef.current
+              ?.map((t) => t.number)
+              .sort((a, b) => a - b),
+          }
+        );
+        firstSpawnRef.current = false; // reset and reseed
+        seedInitial();
+        return;
+      }
+      console.warn("[Spawn] Empty pool mid-run → Game over.", {
+        grounded: groundedTiles.map((t) => t.number).sort((a, b) => a - b),
+      });
       setActiveTile(null);
       setIsGameOver(true);
       return;
     }
+
+    firstSpawnRef.current = false; // first spawn succeeded
     const targetNumber = choice(pool);
     setActiveTile({ row: 0, col: randomTopCol(), targetNumber });
   };
 
+  // ---------- progression ----------
+  const advancePuzzle = () => {
+    setPuzzleIndex((pi) => {
+      const nextPi = pi + 1;
+      if (nextPi < currentLevel.puzzles.length) return nextPi;
+      setLevelIndex((li) => {
+        const nextLi = li + 1;
+        return nextLi < LEVELS.length ? nextLi : 0;
+      });
+      return 0;
+    });
+  };
+
+  // ---------- lock & teleport ----------
   const lockAndTeleport = () => {
     if (!activeTile || isGameOver || isWon || isPreviewing) return;
     const targetRow = rowOf(activeTile.targetNumber);
@@ -107,23 +205,19 @@ export const useGameState = () => {
         ];
         lastLockedRef.current = activeTile.targetNumber;
 
-        // flash: correct placement
-        const fxId = pushEffect({
-          row: targetRow,
-          col: targetCol,
-          color: "yellow",
-          mode: "pulse",
-          repeats: 3,
-          onDone: () => removeEffect(fxId),
-        });
+        fireEffect("correct", { row: targetRow, col: targetCol });
 
-        // win check (exact set equality)
+        // win?
         const placed = new Set(newTiles.map((t) => t.number));
         const allPlaced = VALID_POSITIONS.every((n) => placed.has(n));
         if (allPlaced) {
           setActiveTile(null);
           setIsGameOver(false);
           setIsWon(true);
+          setTimeout(() => {
+            setIsWon(false);
+            advancePuzzle();
+          }, 900);
           return newTiles;
         }
 
@@ -143,16 +237,8 @@ export const useGameState = () => {
         return newTiles;
       });
     } else {
-      // flash red at wrong spot, then teleport + orange pulse
-      const redId = pushEffect({
-        row: currentRow,
-        col: currentCol,
-        color: "red",
-        mode: "blink",
-        repeats: 1,
-        duration: 180,
-        onDone: () => removeEffect(redId),
-      });
+      // wrong + settle
+      fireEffect("wrong", { row: currentRow, col: currentCol });
 
       setTimeout(() => {
         setGroundedTiles((prev) => {
@@ -161,26 +247,27 @@ export const useGameState = () => {
 
           const newTiles = [
             ...prev,
-            { row: targetRow, col: targetCol, number: activeTile.targetNumber },
+            {
+              row: targetRow,
+              col: targetCol,
+              number: activeTile.targetNumber,
+            },
           ];
           lastLockedRef.current = activeTile.targetNumber;
 
-          const orangeId = pushEffect({
-            row: targetRow,
-            col: targetCol,
-            color: "orange",
-            mode: "pulse",
-            repeats: 3,
-            duration: 160,
-            onDone: () => removeEffect(orangeId),
-          });
+          fireEffect("settle", { row: targetRow, col: targetCol });
 
+          // win?
           const placed = new Set(newTiles.map((t) => t.number));
           const allPlaced = VALID_POSITIONS.every((n) => placed.has(n));
           if (allPlaced) {
             setActiveTile(null);
             setIsGameOver(false);
             setIsWon(true);
+            setTimeout(() => {
+              setIsWon(false);
+              advancePuzzle();
+            }, 900);
             return newTiles;
           }
 
@@ -220,31 +307,30 @@ export const useGameState = () => {
     return () => clearInterval(id);
   }, [activeTile, groundedTiles, isGameOver, isWon, isPreviewing]);
 
-  // ---------- seed + preview ----------
+  // ---------- preview & seed ----------
   const startPreviewCountdown = () => {
-    setIsPreviewing(true);
+    // countdown assumes isPreviewing is already true (we set it in seedInitial)
     setCountdown(3);
 
-    // tick 3 -> 2 -> 1 -> 0
     previewIntervalRef.current = setInterval(() => {
       setCountdown((n) => {
         const next = n - 1;
-        if (next <= 0) {
-          clearInterval(previewIntervalRef.current);
-        }
+        if (next <= 0) clearInterval(previewIntervalRef.current);
         return next;
       });
     }, 1000);
 
-    // end preview after ~3s (a hair after last tick)
     previewTimeoutRef.current = setTimeout(() => {
-      setIsPreviewing(false);
       setCountdown(0);
-      spawnTile(); // start the game
+      setIsPreviewing(false); // ← end preview
+      firstSpawnRef.current = true; // mark first-spawn window
+      spawnTile();
     }, 3100);
   };
 
   const seedInitial = () => {
+    rerollsRef.current = 0;
+
     // clear timers & memos
     clearInterval(previewIntervalRef.current);
     clearTimeout(previewTimeoutRef.current);
@@ -256,41 +342,60 @@ export const useGameState = () => {
     setIsWon(false);
     setEffects([]);
 
-    // choose 2 initial grounded tiles that don't violate rules and allow progress
-    let initialNumbers = [];
-    let safety = 0;
+    // IMPORTANT: prevent any auto-spawn window by enabling preview FIRST
+    setIsPreviewing(true);
+    firstSpawnRef.current = false; // preview end will flip to true
 
-    while (safety < 200) {
+    // deterministically compute all valid seed pairs
+    const candidates = listValidSeedPairs();
+
+    if (candidates.length === 0) {
+      console.warn(
+        "[Seed] No valid seed pairs found — using best-effort fallback."
+      );
       const pool = [...VALID_POSITIONS];
-      initialNumbers = [];
-      while (initialNumbers.length < INITIAL_GROUNDED_COUNT && pool.length) {
+      const chosen = [];
+      while (chosen.length < INITIAL_GROUNDED_COUNT && pool.length) {
         const idx = Math.floor(Math.random() * pool.length);
         const pick = pool.splice(idx, 1)[0];
-        const temp = initialNumbers.map((n) => ({ number: n }));
-        if (!violatesUnwantedCombination(temp, pick)) initialNumbers.push(pick);
+        const temp = chosen.map((n) => ({ number: n }));
+        if (!violatesUnwantedCombination(temp, pick)) chosen.push(pick);
       }
-      const initialTiles = initialNumbers.map((num) => ({
+      while (chosen.length < INITIAL_GROUNDED_COUNT && pool.length) {
+        chosen.push(pool.pop());
+      }
+      const initialTiles = chosen.map((num) => ({
         row: rowOf(num),
         col: colOf(num),
         number: num,
       }));
-
-      if (initialTiles.length === INITIAL_GROUNDED_COUNT) {
-        // ensure game can proceed from this seed
-        if (chooseSpawn(initialTiles).length > 0) {
-          setGroundedTiles(initialTiles);
-          break;
-        }
-      }
-      safety++;
+      seedTilesRef.current = initialTiles;
+      setGroundedTiles(initialTiles);
+      startPreviewCountdown();
+      return;
     }
+
+    // Choose a random valid pair
+    const [a, b] = candidates[Math.floor(Math.random() * candidates.length)];
+    const initialTiles = [
+      { number: a, row: rowOf(a), col: colOf(a) },
+      { number: b, row: rowOf(b), col: colOf(b) },
+    ];
+    seedTilesRef.current = initialTiles;
+    setGroundedTiles(initialTiles);
 
     // show full completed image for 3s, then begin play
     startPreviewCountdown();
   };
 
+  // re-seed when levelIndex/puzzleIndex changes
   useEffect(() => {
     seedInitial();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [levelIndex, puzzleIndex]);
+
+  // cleanup on unmount
+  useEffect(() => {
     return () => {
       clearInterval(intervalRef.current);
       clearTimeout(lockTimeoutRef.current);
@@ -299,6 +404,7 @@ export const useGameState = () => {
     };
   }, []);
 
+  // spawn when ready (still guarded by isPreviewing)
   useEffect(() => {
     if (
       groundedTiles.length > 0 &&
@@ -311,6 +417,11 @@ export const useGameState = () => {
     }
   }, [groundedTiles, isGameOver, isWon, isPreviewing]);
 
+  const newGame = () => {
+    setLevelIndex(0);
+    setPuzzleIndex(0);
+  };
+
   return {
     state: {
       groundedTiles,
@@ -321,6 +432,11 @@ export const useGameState = () => {
       countdown,
       tilesLeft,
       effects,
+      levelIndex,
+      puzzleIndex,
+      currentLevel,
+      currentPuzzle,
+      currentPuzzleImage,
     },
     actions: {
       moveLeft: () =>
@@ -351,7 +467,10 @@ export const useGameState = () => {
           }
           return { ...p, row: p.row + 1 };
         }),
-      newGame: seedInitial,
+      newGame,
+      nextPuzzle: advancePuzzle,
+      setLevelIndex,
+      setPuzzleIndex,
     },
   };
 };

@@ -16,6 +16,7 @@ export default function GameScreen() {
     isPreviewing,
     countdown,
     effects,
+    currentPuzzleImage,
   } = state;
 
   const { moveLeft, moveRight, moveDown, newGame } = actions;
@@ -30,6 +31,7 @@ export default function GameScreen() {
         isPreviewing={isPreviewing}
         countdown={countdown}
         effects={effects}
+        imageUri={currentPuzzleImage}
       />
 
       <Controls

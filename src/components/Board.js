@@ -14,6 +14,13 @@ import {
 import { Tile } from "./Tile";
 import Flash from "./Flash";
 
+const toImageSource = (src) => {
+  if (!src) return null;
+  if (typeof src === "string") return { uri: src }; // URL string
+  if (typeof src === "object" && src.uri) return src; // already { uri: ... }
+  return src; // assume require(...) module
+};
+
 export const Board = ({
   groundedTiles,
   activeTile,
@@ -22,6 +29,7 @@ export const Board = ({
   isPreviewing,
   countdown,
   effects = [],
+  imageUri,
 }) => {
   const groundedSet = useMemo(
     () => new Set(groundedTiles.map((t) => t.number)),
@@ -32,6 +40,8 @@ export const Board = ({
     top: row * TILE_SIZE,
     left: col * TILE_SIZE,
   });
+
+  //console.log("Board imageUri =", imageUri);
 
   return (
     <View style={styles.board}>
@@ -47,13 +57,15 @@ export const Board = ({
             }}
             pointerEvents="none"
           >
-            <Image
-              source={{ uri: PUZZLE_IMAGE_URI }}
-              cachePolicy="memory-disk"
-              style={{ width: "100%", height: "100%" }}
-              contentFit="cover"
-              transition={120}
-            />
+            {imageUri && (
+              <Image
+                source={toImageSource(imageUri)}
+                cachePolicy="memory-disk"
+                style={{ width: "100%", height: "100%" }}
+                contentFit="cover"
+                transition={120}
+              />
+            )}
           </View>
           {countdown > 0 && (
             <Text style={styles.previewCountdown}>{countdown}</Text>
@@ -70,7 +82,7 @@ export const Board = ({
               key={tile.number}
               tilePos={gridToPixel(tile.row, tile.col)}
               number={tile.number}
-              imageUri={PUZZLE_IMAGE_URI}
+              imageUri={imageUri}
               isGrounded
               groundedSet={groundedSet}
             />
@@ -80,7 +92,7 @@ export const Board = ({
             <Tile
               tilePos={gridToPixel(activeTile.row, activeTile.col)}
               number={activeTile.targetNumber}
-              imageUri={PUZZLE_IMAGE_URI}
+              imageUri={imageUri}
               isActive
             />
           )}

@@ -2,8 +2,31 @@
 import React from "react";
 import { View, StyleSheet } from "react-native";
 import { Image } from "expo-image";
-import { TILE_SIZE, IMAGE_SIZE, BOARD_WIDTH } from "../constants/gameConfig";
+// import {
+//   TILE_SIZE,
+//   IMAGE_SIZE,
+//   BOARD_WIDTH,
+//   BOARD_HEIGHT,
+//   PUZZLE_START_ROW, // <-- use these
+//   PUZZLE_SIZE, // <-- (should be 3 for 3×3)
+// } from "../constants/gameConfig";
+
+import {
+  TILE_SIZE,
+  IMAGE_SIZE,
+  BOARD_WIDTH,
+  PUZZLE_START_ROW,
+  PUZZLE_ROWS,
+} from "../constants/gameConfig";
+
 import { rowOf, colOf, localColOf, px } from "../utils/positions";
+
+const toImageSource = (src) => {
+  if (!src) return null;
+  if (typeof src === "string") return { uri: src };
+  if (typeof src === "object" && src.uri) return src;
+  return src;
+};
 
 export const Tile = ({
   tilePos,
@@ -16,9 +39,15 @@ export const Tile = ({
   // compute slice within the 3x3
   const r = rowOf(number);
   const c = colOf(number);
-  // if your puzzle start row varies, adjust this:
-  const lr = r - 2; // e.g., if puzzle starts at row index 2
-  const lc = localColOf(number);
+
+  const lr = r - PUZZLE_START_ROW; // 0..2 within 3x3
+  const lc = localColOf(number); // 0..2 within 3x3 (since puzzle starts at col 0)
+
+  // edges relative to the 3x3 window
+  const topEdge = r === PUZZLE_START_ROW;
+  const bottomEdge = r === PUZZLE_START_ROW + (PUZZLE_ROWS - 1);
+  const leftEdge = c === 0; // puzzle starts at col 0
+  const rightEdge = c === BOARD_WIDTH - 1; // BOARD_WIDTH is 3
 
   let borders = { top: true, right: true, bottom: true, left: true };
   if (isGrounded && groundedSet) {
@@ -27,10 +56,10 @@ export const Tile = ({
     const left = number - 1;
     const right = number + 1;
 
-    borders.top = r === 2 ? true : !groundedSet.has(up);
-    borders.bottom = r === 5 ? true : !groundedSet.has(down);
-    borders.left = c === 0 ? true : !groundedSet.has(left);
-    borders.right = c === BOARD_WIDTH - 1 ? true : !groundedSet.has(right);
+    borders.top = topEdge ? true : !groundedSet.has(up);
+    borders.bottom = bottomEdge ? true : !groundedSet.has(down);
+    borders.left = leftEdge ? true : !groundedSet.has(left);
+    borders.right = rightEdge ? true : !groundedSet.has(right);
   }
 
   return (
@@ -39,7 +68,7 @@ export const Tile = ({
     >
       <View style={styles.mask}>
         <Image
-          source={{ uri: imageUri }}
+          source={toImageSource(imageUri)}
           cachePolicy="memory-disk"
           style={{
             position: "absolute",

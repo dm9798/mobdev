@@ -1,0 +1,93 @@
+// export const UNWANTED_COMBINATIONS = [
+//   {
+//     combination: [6, 10],
+//     requiredPositions: [9],
+//   },
+//   {
+//     combination: [9, 13],
+//     requiredPositions: [12],
+//   },
+//   {
+//     combination: [8, 10],
+//     requiredPositions: [11],
+//   },
+//   {
+//     combination: [11, 13],
+//     requiredPositions: [14],
+//   },
+//   {
+//     combination: [6, 7, 8],
+//     requiredPositions: [9, 10, 11, 12, 13, 14],
+//   },
+//   {
+//     combination: [6, 7, 11],
+//     requiredPositions: [9, 10, 12, 13, 14],
+//   },
+//   {
+//     combination: [6, 8, 10],
+//     requiredPositions: [9, 11, 12, 13, 14],
+//   },
+//   {
+//     combination: [6, 10, 11],
+//     requiredPositions: [9, 12, 13, 14],
+//   },
+//   {
+//     combination: [6, 10, 14],
+//     requiredPositions: [9, 12, 13],
+//   },
+//   {
+//     combination: [6, 10, 13],
+//     requiredPositions: [9, 12],
+//   },
+//   {
+//     combination: [7, 8, 9],
+//     requiredPositions: [10, 11, 12, 13, 14],
+//   },
+//   {
+//     combination: [8, 9, 10],
+//     requiredPositions: [11, 12, 13, 14],
+//   },
+//   {
+//     combination: [8, 10, 12],
+//     requiredPositions: [11, 13, 14],
+//   },
+//   {
+//     combination: [8, 10, 13],
+//     requiredPositions: [11, 14],
+//   },
+//   {
+//     combination: [7, 9, 11],
+//     requiredPositions: [10, 12, 13, 14],
+//   },
+//   {
+//     combination: [9, 10, 11],
+//     requiredPositions: [12, 13, 14],
+//   },
+//   {
+//     combination: [9, 10, 14],
+//     requiredPositions: [12, 13],
+//   },
+//   {
+//     combination: [10, 11, 12],
+//     requiredPositions: [13, 14],
+//   },
+//   {
+//     combination: [10, 12, 14],
+//     requiredPositions: [13],
+//   },
+// ];
+
+// export const UNWANTED_COMBINATIONS = [
+//   { combination: [6, 10], requiredPositions: [9] },
+//   { combination: [9, 13], requiredPositions: [12] },
+//   { combination: [8, 10], requiredPositions: [11] },
+//   { combination: [11, 13], requiredPositions: [14] },
+//   { combination: [6, 7, 8], requiredPositions: [9, 10, 11, 12, 13, 14] },
+//   { combination: [6, 7, 11], requiredPositions: [9, 10, 12, 13, 14] },
+//   { combination: [7, 8, 9], requiredPositions: [10, 11, 12, 13, 14] },
+//   { combination: [7, 9, 11], requiredPositions: [10, 12, 13, 14] },
+//   { combination: [9, 10, 11], requiredPositions: [12, 13, 14] },
+//   { combination: [9, 10, 14], requiredPositions: [12, 13] },
+//   { combination: [10, 11, 12], requiredPositions: [13, 14] },
+//   { combination: [10, 12, 14], requiredPositions: [13] },
+// ];
